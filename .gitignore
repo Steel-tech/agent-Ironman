@@ -1,0 +1,42 @@
+# Environment variables - NEVER commit these files
+.env
+.env.local
+.env.*.local
+
+# Python virtual environment
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Node modules
+node_modules/
+
+# Build outputs
+dist/
+build/
+*.log
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Redis
+dump.rdb
+
+# Chroma vector store data
+data/chroma/
