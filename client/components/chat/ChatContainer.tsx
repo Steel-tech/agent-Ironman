@@ -31,7 +31,7 @@ import { PlanApprovalModal } from '../plan/PlanApprovalModal';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useSessionAPI, type Session } from '../../hooks/useSessionAPI';
 import { Menu, Edit3, Brain } from 'lucide-react';
-import { AIIntelligenceHub } from '../ai/AIIntelligenceHub';
+// import { AIIntelligenceHub } from '../ai/AIIntelligenceHub'; // Temporarily disabled - missing UI components
 import type { Message } from '../message/types';
 import { toast } from '../../utils/toast';
 import { showError } from '../../utils/errorMessages';
@@ -87,7 +87,7 @@ export function ChatContainer() {
   const [pendingPlan, setPendingPlan] = useState<string | null>(null);
 
   // AI Intelligence Hub visibility
-  const [showAIHub, setShowAIHub] = useState(false);
+  // const [showAIHub, setShowAIHub] = useState(false); // Temporarily disabled
 
   // Background processes (per-session)
   const [backgroundProcesses, setBackgroundProcesses] = useState<Map<string, BackgroundProcess[]>>(new Map());
@@ -983,15 +983,15 @@ export function ChatContainer() {
                   onChangeDirectory={handleChangeDirectory}
                 />
               )}
-              {/* AI Intelligence Hub Button */}
-              <button
-                className={`header-btn ${showAIHub ? 'bg-blue-100' : ''}`}
+              {/* AI Intelligence Hub Button - Temporarily disabled */}
+              {/* <button
+                className={`header-btn`}
                 aria-label="AI Intelligence Hub"
-                onClick={() => setShowAIHub(!showAIHub)}
-                title="AI Intelligence Hub"
+                onClick={() => {}}
+                title="AI Intelligence Hub (Coming Soon)"
               >
                 <Brain className="w-5 h-5" />
-              </button>
+              </button> */}
               {/* About Button */}
               <AboutButton />
             </div>
@@ -1040,8 +1040,8 @@ export function ChatContainer() {
         )}
       </div>
 
-      {/* AI Intelligence Hub Sidebar */}
-      {showAIHub && (
+      {/* AI Intelligence Hub Sidebar - Temporarily disabled */}
+      {/* {showAIHub && (
         <div className="fixed right-0 top-0 h-screen w-96 bg-white border-l shadow-lg overflow-y-auto z-50">
           <div className="p-4">
             <AIIntelligenceHub
@@ -1054,7 +1054,7 @@ export function ChatContainer() {
             />
           </div>
         </div>
-      )}
+      )} */}
 
       {/* Plan Approval Modal */}
       {pendingPlan && (
