@@ -30,7 +30,8 @@ import { AboutButton } from '../header/AboutButton';
 import { PlanApprovalModal } from '../plan/PlanApprovalModal';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useSessionAPI, type Session } from '../../hooks/useSessionAPI';
-import { Menu, Edit3 } from 'lucide-react';
+import { Menu, Edit3, Brain } from 'lucide-react';
+import { AIIntelligenceHub } from '../ai/AIIntelligenceHub';
 import type { Message } from '../message/types';
 import { toast } from '../../utils/toast';
 import { showError } from '../../utils/errorMessages';
@@ -84,6 +85,9 @@ export function ChatContainer() {
 
   // Plan approval
   const [pendingPlan, setPendingPlan] = useState<string | null>(null);
+
+  // AI Intelligence Hub visibility
+  const [showAIHub, setShowAIHub] = useState(false);
 
   // Background processes (per-session)
   const [backgroundProcesses, setBackgroundProcesses] = useState<Map<string, BackgroundProcess[]>>(new Map());
@@ -979,6 +983,15 @@ export function ChatContainer() {
                   onChangeDirectory={handleChangeDirectory}
                 />
               )}
+              {/* AI Intelligence Hub Button */}
+              <button
+                className={`header-btn ${showAIHub ? 'bg-blue-100' : ''}`}
+                aria-label="AI Intelligence Hub"
+                onClick={() => setShowAIHub(!showAIHub)}
+                title="AI Intelligence Hub"
+              >
+                <Brain className="w-5 h-5" />
+              </button>
               {/* About Button */}
               <AboutButton />
             </div>
@@ -1026,6 +1039,22 @@ export function ChatContainer() {
           </>
         )}
       </div>
+
+      {/* AI Intelligence Hub Sidebar */}
+      {showAIHub && (
+        <div className="fixed right-0 top-0 h-screen w-96 bg-white border-l shadow-lg overflow-y-auto z-50">
+          <div className="p-4">
+            <AIIntelligenceHub
+              sessionData={{ sessionId: currentSessionId, mode: currentSessionMode }}
+              projectContext={{}}
+              onExecuteAction={(action) => {
+                console.log('Execute AI action:', action);
+                // Handle AI action execution here
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Plan Approval Modal */}
       {pendingPlan && (

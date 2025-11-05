@@ -52,6 +52,13 @@ import { handleDirectoryRoutes } from "./routes/directory";
 import { handleUserConfigRoutes } from "./routes/userConfig";
 import { handleCommandRoutes } from "./routes/commands";
 import { handleWebSocketMessage } from "./websocket/messageHandlers";
+import { handleAIRoutes } from "./routes/ai";
+import {
+  personalLearning,
+  predictiveSuggestions,
+  personalKnowledgeBase,
+  habitTracking
+} from "./ai";
 import type { ServerWebSocket } from "bun";
 
 // Initialize startup configuration (loads env vars, sets up PostCSS)
@@ -75,7 +82,32 @@ interface ChatWebSocketData {
 // Store active queries for mid-stream control
 const activeQueries = new Map<string, unknown>();
 
+// Store AI services per session
+const sessionAIServices = new Map<string, {
+  learning: typeof personalLearning;
+  suggestions: typeof predictiveSuggestions;
+  knowledge: typeof personalKnowledgeBase;
+  habits: typeof habitTracking;
+}>();
+
 const hotReloadClients = new Set<HotReloadClient>();
+
+/**
+ * Get or create AI services for a session
+ */
+export function getAIServices(sessionId: string) {
+  let services = sessionAIServices.get(sessionId);
+  if (!services) {
+    services = {
+      learning: personalLearning,
+      suggestions: predictiveSuggestions,
+      knowledge: personalKnowledgeBase,
+      habits: habitTracking
+    };
+    sessionAIServices.set(sessionId, services);
+  }
+  return services;
+}
 
 // Watch for file changes (hot reload) - only in dev mode
 if (!IS_STANDALONE) {
@@ -159,6 +191,12 @@ const server = Bun.serve({
     const commandResponse = await handleCommandRoutes(req, url);
     if (commandResponse) {
       return commandResponse;
+    }
+
+    // Try AI routes
+    const aiResponse = await handleAIRoutes(req, url);
+    if (aiResponse) {
+      return aiResponse;
     }
 
     // Try to handle as static file

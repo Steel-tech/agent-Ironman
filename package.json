@@ -23,7 +23,7 @@
     "redis:start": "redis-server --daemonize yes",
     "redis:stop": "redis-cli shutdown"
   },
-  "author": "KenKai",
+  "author": "Agent Ironman",
   "license": "AGPL-3.0-or-later",
   "description": "Clean chat UI for Claude Agent SDK",
   "dependencies": {

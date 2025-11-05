@@ -1,0 +1,96 @@
+[
+  {
+    "title": "React Component Best Practices",
+    "content": "Key practices for building React components: 1) Use functional components with hooks 2) Implement proper prop types 3) Keep components small and focused 4) Use memoization for expensive operations 5) Handle loading and error states",
+    "type": "pattern",
+    "category": "frontend",
+    "tags": [
+      "react",
+      "components",
+      "best-practices",
+      "hooks"
+    ],
+    "difficulty": "intermediate",
+    "importance": 8,
+    "confidence": 0.9,
+    "sources": [
+      {
+        "type": "generated",
+        "reference": "initial-knowledge",
+        "confidence": 0.8,
+        "timestamp": 1762379557818
+      }
+    ],
+    "relatedEntries": [],
+    "accessed": 0,
+    "accessCount": 0,
+    "metadata": {
+      "language": "javascript",
+      "framework": "react",
+      "keywords": [
+        "react",
+        "components",
+        "hooks",
+        "functional"
+      ],
+      "estimatedTimeToMaster": 120,
+      "prerequisites": [
+        "javascript-basics",
+        "jsx-syntax"
+      ],
+      "relatedSkills": [
+        "state-management",
+        "component-testing"
+      ]
+    },
+    "id": "10f26294-87b5-49c1-a81e-cc2110c895fd",
+    "created": 1762379557818,
+    "updated": 1762379557818
+  },
+  {
+    "title": "Git Workflow Optimization",
+    "content": "Optimal Git workflow patterns: 1) Use feature branches for new work 2) Commit frequently with descriptive messages 3) Use pull requests for code review 4) Keep main branch stable 5) Use rebase for clean history",
+    "type": "pattern",
+    "category": "development",
+    "tags": [
+      "git",
+      "workflow",
+      "version-control",
+      "best-practices"
+    ],
+    "difficulty": "intermediate",
+    "importance": 9,
+    "confidence": 0.95,
+    "sources": [
+      {
+        "type": "generated",
+        "reference": "initial-knowledge",
+        "confidence": 0.9,
+        "timestamp": 1762379557818
+      }
+    ],
+    "relatedEntries": [],
+    "accessed": 0,
+    "accessCount": 0,
+    "metadata": {
+      "keywords": [
+        "git",
+        "workflow",
+        "branches",
+        "commits",
+        "pull-requests"
+      ],
+      "estimatedTimeToMaster": 90,
+      "prerequisites": [
+        "git-basics"
+      ],
+      "relatedSkills": [
+        "collaboration",
+        "code-review"
+      ]
+    },
+    "id": "b2243673-e248-491e-9588-469e87329b41",
+    "created": 1762379557819,
+    "updated": 1762379557819
+  }
+]

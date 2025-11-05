@@ -1,0 +1,197 @@
+[
+  {
+    "name": "Daily Code Review",
+    "description": "Review and improve code quality daily",
+    "category": "quality",
+    "type": "positive",
+    "frequency": "daily",
+    "targetValue": 1,
+    "currentValue": 0,
+    "unit": "reviews",
+    "importance": 8,
+    "isActive": true,
+    "streak": 0,
+    "bestStreak": 0,
+    "completionHistory": [],
+    "triggers": [
+      "end of coding session",
+      "before commit"
+    ],
+    "blockers": [
+      "tight deadlines",
+      "complex features"
+    ],
+    "metadata": {
+      "timeOfDay": [
+        "evening"
+      ],
+      "dayOfWeek": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "environmentFactors": [
+        "quiet environment"
+      ]
+    },
+    "id": "d7199f6f-bce5-4e0b-baeb-78d5a31ed84f",
+    "created": 1762379557819,
+    "updated": 1762379557819,
+    "lastTracked": 1762379557819
+  },
+  {
+    "name": "Learning Time",
+    "description": "Dedicate time to learning new technologies or concepts",
+    "category": "learning",
+    "type": "positive",
+    "frequency": "daily",
+    "targetValue": 30,
+    "currentValue": 0,
+    "unit": "minutes",
+    "importance": 9,
+    "isActive": true,
+    "streak": 0,
+    "bestStreak": 0,
+    "completionHistory": [],
+    "triggers": [
+      "morning routine",
+      "break time"
+    ],
+    "blockers": [
+      "urgent tasks",
+      "meetings"
+    ],
+    "rewards": [
+      "new skill acquisition",
+      "career growth"
+    ],
+    "metadata": {
+      "timeOfDay": [
+        "morning"
+      ],
+      "emotionalState": [
+        "curious",
+        "motivated"
+      ]
+    },
+    "id": "ae044d07-aa8c-4152-8911-f367b4cb54ba",
+    "created": 1762379557820,
+    "updated": 1762379557820,
+    "lastTracked": 1762379557820
+  },
+  {
+    "name": "Regular Breaks",
+    "description": "Take regular breaks to maintain productivity and health",
+    "category": "health",
+    "type": "positive",
+    "frequency": "daily",
+    "targetValue": 4,
+    "currentValue": 0,
+    "unit": "breaks",
+    "importance": 7,
+    "isActive": true,
+    "streak": 0,
+    "bestStreak": 0,
+    "completionHistory": [],
+    "triggers": [
+      "2 hours of continuous work",
+      "feeling tired"
+    ],
+    "blockers": [
+      "deep focus state",
+      "urgent deadlines"
+    ],
+    "rewards": [
+      "reduced fatigue",
+      "better focus"
+    ],
+    "metadata": {
+      "timeOfDay": [
+        "morning",
+        "afternoon"
+      ],
+      "environmentFactors": [
+        "work environment"
+      ]
+    },
+    "id": "cf799258-2d90-4639-96a3-a50ea9b0059b",
+    "created": 1762379557821,
+    "updated": 1762379557821,
+    "lastTracked": 1762379557821
+  },
+  {
+    "name": "Commit Frequency",
+    "description": "Make small, frequent commits to maintain clean history",
+    "category": "workflow",
+    "type": "positive",
+    "frequency": "daily",
+    "targetValue": 3,
+    "currentValue": 0,
+    "unit": "commits",
+    "importance": 6,
+    "isActive": true,
+    "streak": 0,
+    "bestStreak": 0,
+    "completionHistory": [],
+    "triggers": [
+      "completed feature",
+      "fixed bug"
+    ],
+    "blockers": [
+      "large feature development",
+      "experimental code"
+    ],
+    "metadata": {
+      "dayOfWeek": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "projectContext": [
+        "feature development",
+        "bug fixes"
+      ]
+    },
+    "id": "cdb4bd2b-47d6-4cf6-bd52-d881df0d4daf",
+    "created": 1762379557838,
+    "updated": 1762379557838,
+    "lastTracked": 1762379557838
+  },
+  {
+    "name": "Context Switching",
+    "description": "Minimize context switching between tasks",
+    "category": "productivity",
+    "type": "negative",
+    "frequency": "daily",
+    "targetValue": 2,
+    "currentValue": 0,
+    "unit": "switches",
+    "importance": 5,
+    "isActive": true,
+    "streak": 0,
+    "bestStreak": 0,
+    "completionHistory": [],
+    "triggers": [
+      "notifications",
+      "multiple projects"
+    ],
+    "blockers": [
+      "deep work sessions",
+      "focused environment"
+    ],
+    "metadata": {
+      "emotionalState": [
+        "distracted",
+        "overwhelmed"
+      ]
+    },
+    "id": "534a2dbe-c7fe-470c-bedc-94c6147572d6",
+    "created": 1762379557838,
+    "updated": 1762379557838,
+    "lastTracked": 1762379557838
+  }
+]

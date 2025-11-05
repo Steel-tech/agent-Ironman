@@ -20,6 +20,7 @@ import { parseApiError, getUserFriendlyMessage } from "../utils/apiErrors";
 import { TimeoutController } from "../utils/timeout";
 import { sessionStreamManager } from "../sessionStreamManager";
 import { expandSlashCommand } from "../slashCommandExpander";
+import { getAIServices } from "../server";
 import {
   JsonParseError,
   ValidationError,
@@ -96,6 +97,12 @@ export async function handleWebSocketMessage(
         await handleKillBackgroundProcess(ws, parsedData);
       } else if (parsedData.type === 'stop_generation') {
         await handleStopGeneration(ws, parsedData);
+      } else if (parsedData.type === 'ai_suggestion_request') {
+        await handleAISuggestionRequest(ws, parsedData);
+      } else if (parsedData.type === 'ai_knowledge_search') {
+        await handleAIKnowledgeSearch(ws, parsedData);
+      } else if (parsedData.type === 'ai_habit_track') {
+        await handleAIHabitTrack(ws, parsedData);
       } else {
         throw new ValidationError(
           `Unknown message type: ${parsedData.type}`,
@@ -1309,6 +1316,103 @@ async function handleStopGeneration(
       error,
       { sessionId: sessionId.toString().substring(0, 8) },
       sessionId as string
+    );
+  }
+}
+
+// AI Intelligence Hub Handlers
+
+async function handleAISuggestionRequest(
+  ws: ServerWebSocket<ChatWebSocketData>,
+  data: Record<string, unknown>
+): Promise<void> {
+  const { sessionId, context } = data;
+
+  if (!sessionId || typeof sessionId !== 'string') {
+    throw new ValidationError('Missing or invalid sessionId', ['sessionId'], data, sessionId as string);
+  }
+
+  try {
+    const aiServices = getAIServices(sessionId);
+    const suggestions = await aiServices.suggestions.generateSuggestions(context || {});
+
+    ws.send(JSON.stringify({
+      type: 'ai_suggestions',
+      sessionId,
+      suggestions
+    }));
+  } catch (error) {
+    console.error('AI suggestion error:', error);
+    throw new InternalError(
+      'Failed to generate AI suggestions',
+      error,
+      { sessionId: sessionId.substring(0, 8) },
+      sessionId
+    );
+  }
+}
+
+async function handleAIKnowledgeSearch(
+  ws: ServerWebSocket<ChatWebSocketData>,
+  data: Record<string, unknown>
+): Promise<void> {
+  const { sessionId, query } = data;
+
+  if (!sessionId || typeof sessionId !== 'string') {
+    throw new ValidationError('Missing or invalid sessionId', ['sessionId'], data, sessionId as string);
+  }
+
+  try {
+    const aiServices = getAIServices(sessionId);
+    const results = await aiServices.knowledge.searchKnowledge(query || {});
+
+    ws.send(JSON.stringify({
+      type: 'ai_knowledge_results',
+      sessionId,
+      results
+    }));
+  } catch (error) {
+    console.error('AI knowledge search error:', error);
+    throw new InternalError(
+      'Failed to search knowledge base',
+      error,
+      { sessionId: sessionId.substring(0, 8) },
+      sessionId
+    );
+  }
+}
+
+async function handleAIHabitTrack(
+  ws: ServerWebSocket<ChatWebSocketData>,
+  data: Record<string, unknown>
+): Promise<void> {
+  const { sessionId, habitId, value, notes, context } = data;
+
+  if (!sessionId || typeof sessionId !== 'string') {
+    throw new ValidationError('Missing or invalid sessionId', ['sessionId'], data, sessionId as string);
+  }
+
+  try {
+    const aiServices = getAIServices(sessionId);
+    const tracked = await aiServices.habits.trackHabit(
+      habitId as string,
+      value as number,
+      notes as string | undefined,
+      context as any
+    );
+
+    ws.send(JSON.stringify({
+      type: 'ai_habit_tracked',
+      sessionId,
+      success: tracked
+    }));
+  } catch (error) {
+    console.error('AI habit tracking error:', error);
+    throw new InternalError(
+      'Failed to track habit',
+      error,
+      { sessionId: sessionId.substring(0, 8) },
+      sessionId
     );
   }
 }
