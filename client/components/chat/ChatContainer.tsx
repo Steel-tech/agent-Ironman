@@ -30,8 +30,9 @@ import { AboutButton } from '../header/AboutButton';
 import { PlanApprovalModal } from '../plan/PlanApprovalModal';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useSessionAPI, type Session } from '../../hooks/useSessionAPI';
-import { Menu, Edit3, Brain } from 'lucide-react';
+import { Menu, Edit3, Brain, Package } from 'lucide-react';
 // import { AIIntelligenceHub } from '../ai/AIIntelligenceHub'; // Temporarily disabled - missing UI components
+import { PythonEnvironmentManager } from '../python/PythonEnvironmentManager';
 import type { Message } from '../message/types';
 import { toast } from '../../utils/toast';
 import { showError } from '../../utils/errorMessages';
@@ -88,6 +89,9 @@ export function ChatContainer() {
 
   // AI Intelligence Hub visibility
   // const [showAIHub, setShowAIHub] = useState(false); // Temporarily disabled
+
+  // Python Environment Manager visibility
+  const [showPythonPanel, setShowPythonPanel] = useState(false);
 
   // Background processes (per-session)
   const [backgroundProcesses, setBackgroundProcesses] = useState<Map<string, BackgroundProcess[]>>(new Map());
@@ -992,6 +996,15 @@ export function ChatContainer() {
               >
                 <Brain className="w-5 h-5" />
               </button> */}
+              {/* Python Environment Manager Button */}
+              <button
+                className={`header-btn ${showPythonPanel ? 'bg-blue-100 dark:bg-blue-900' : ''}`}
+                aria-label="Python Environment Manager"
+                onClick={() => setShowPythonPanel(!showPythonPanel)}
+                title="Python Environment Manager"
+              >
+                <Package className="w-5 h-5" />
+              </button>
               {/* About Button */}
               <AboutButton />
             </div>
@@ -1055,6 +1068,26 @@ export function ChatContainer() {
           </div>
         </div>
       )} */}
+
+      {/* Python Environment Manager Sidebar */}
+      {showPythonPanel && currentSessionId && (
+        <div className="fixed right-0 top-0 h-screen w-[32rem] bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 shadow-lg overflow-y-auto z-50">
+          <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Package className="w-5 h-5" />
+              Python Environment
+            </h2>
+            <button
+              onClick={() => setShowPythonPanel(false)}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              aria-label="Close Python panel"
+            >
+              ✕
+            </button>
+          </div>
+          <PythonEnvironmentManager sessionId={currentSessionId} />
+        </div>
+      )}
 
       {/* Plan Approval Modal */}
       {pendingPlan && (

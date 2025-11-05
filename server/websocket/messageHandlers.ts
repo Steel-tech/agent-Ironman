@@ -103,6 +103,12 @@ export async function handleWebSocketMessage(
         await handleAIKnowledgeSearch(ws, parsedData);
       } else if (parsedData.type === 'ai_habit_track') {
         await handleAIHabitTrack(ws, parsedData);
+      } else if (parsedData.type === 'python_env_status') {
+        await handlePythonEnvStatus(ws, parsedData);
+      } else if (parsedData.type === 'python_package_install') {
+        await handlePythonPackageInstall(ws, parsedData);
+      } else if (parsedData.type === 'python_script_run') {
+        await handlePythonScriptRun(ws, parsedData);
       } else {
         throw new ValidationError(
           `Unknown message type: ${parsedData.type}`,
@@ -1412,6 +1418,126 @@ async function handleAIHabitTrack(
       'Failed to track habit',
       error,
       { sessionId: sessionId.substring(0, 8) },
+      sessionId
+    );
+  }
+}
+
+// Python Environment Handlers
+
+async function handlePythonEnvStatus(
+  ws: ServerWebSocket<ChatWebSocketData>,
+  data: Record<string, unknown>
+): Promise<void> {
+  const { sessionId } = data;
+
+  if (!sessionId || typeof sessionId !== 'string') {
+    throw new ValidationError('Missing or invalid sessionId', ['sessionId'], data, sessionId as string);
+  }
+
+  try {
+    const session = sessionDb.getSession(sessionId);
+    if (!session) {
+      throw new SessionError(sessionId, 'not_found');
+    }
+
+    const { getPythonEnvironmentManager } = await import('../python');
+    const envManager = getPythonEnvironmentManager(sessionId, session.working_directory);
+    const status = await envManager.getEnvironmentStatus();
+
+    ws.send(JSON.stringify({
+      type: 'python_env_status',
+      sessionId,
+      status
+    }));
+  } catch (error) {
+    console.error('Python env status error:', error);
+    throw new InternalError(
+      'Failed to get Python environment status',
+      error,
+      { sessionId: sessionId.substring(0, 8) },
+      sessionId
+    );
+  }
+}
+
+async function handlePythonPackageInstall(
+  ws: ServerWebSocket<ChatWebSocketData>,
+  data: Record<string, unknown>
+): Promise<void> {
+  const { sessionId, packages } = data;
+
+  if (!sessionId || typeof sessionId !== 'string') {
+    throw new ValidationError('Missing or invalid sessionId', ['sessionId'], data, sessionId as string);
+  }
+
+  if (!packages || !Array.isArray(packages)) {
+    throw new ValidationError('Missing or invalid packages array', ['packages'], data, sessionId);
+  }
+
+  try {
+    const session = sessionDb.getSession(sessionId);
+    if (!session) {
+      throw new SessionError(sessionId, 'not_found');
+    }
+
+    const { getPythonEnvironmentManager } = await import('../python');
+    const envManager = getPythonEnvironmentManager(sessionId, session.working_directory);
+    const result = await envManager.installPackages(packages as string[]);
+
+    ws.send(JSON.stringify({
+      type: 'python_package_installed',
+      sessionId,
+      success: result.success,
+      output: result.output
+    }));
+  } catch (error) {
+    console.error('Python package install error:', error);
+    throw new InternalError(
+      'Failed to install Python packages',
+      error,
+      { sessionId: sessionId.substring(0, 8), packages },
+      sessionId
+    );
+  }
+}
+
+async function handlePythonScriptRun(
+  ws: ServerWebSocket<ChatWebSocketData>,
+  data: Record<string, unknown>
+): Promise<void> {
+  const { sessionId, scriptPath, args } = data;
+
+  if (!sessionId || typeof sessionId !== 'string') {
+    throw new ValidationError('Missing or invalid sessionId', ['sessionId'], data, sessionId as string);
+  }
+
+  if (!scriptPath || typeof scriptPath !== 'string') {
+    throw new ValidationError('Missing or invalid scriptPath', ['scriptPath'], data, sessionId);
+  }
+
+  try {
+    const session = sessionDb.getSession(sessionId);
+    if (!session) {
+      throw new SessionError(sessionId, 'not_found');
+    }
+
+    const { getPythonEnvironmentManager } = await import('../python');
+    const envManager = getPythonEnvironmentManager(sessionId, session.working_directory);
+    const result = await envManager.runScript(scriptPath as string, (args as string[]) || []);
+
+    ws.send(JSON.stringify({
+      type: 'python_script_result',
+      sessionId,
+      success: result.success,
+      output: result.output
+    }));
+  } catch (error) {
+    console.error('Python script run error:', error);
+    throw new InternalError(
+      'Failed to run Python script',
+      error,
+      { sessionId: sessionId.substring(0, 8), scriptPath },
       sessionId
     );
   }

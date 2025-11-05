@@ -53,6 +53,7 @@ import { handleUserConfigRoutes } from "./routes/userConfig";
 import { handleCommandRoutes } from "./routes/commands";
 import { handleWebSocketMessage } from "./websocket/messageHandlers";
 import { handleAIRoutes } from "./routes/ai";
+import { handlePythonRoutes } from "./routes/python";
 import {
   personalLearning,
   predictiveSuggestions,
@@ -197,6 +198,12 @@ const server = Bun.serve({
     const aiResponse = await handleAIRoutes(req, url);
     if (aiResponse) {
       return aiResponse;
+    }
+
+    // Try Python routes
+    const pythonResponse = await handlePythonRoutes(req, url);
+    if (pythonResponse) {
+      return pythonResponse;
     }
 
     // Try to handle as static file
