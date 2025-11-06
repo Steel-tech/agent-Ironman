@@ -3,62 +3,10 @@
  * Handles all session-related REST endpoints
  */
 
-import { z } from "zod";
 import { sessionDb } from "../database";
 import { backgroundProcessManager } from "../backgroundProcessManager";
 import { sessionStreamManager } from "../sessionStreamManager";
 import { setupSessionCommands } from "../commandSetup";
-
-// Validation schemas
-const createSessionSchema = z.object({
-  title: z.string().optional(),
-  workingDirectory: z.string().optional(),
-  mode: z.enum(['general', 'coder', 'intense-research', 'spark']).optional()
-});
-
-const renameFolderSchema = z.object({
-  folderName: z.string().min(1, 'Folder name is required')
-});
-
-const updateDirectorySchema = z.object({
-  workingDirectory: z.string().min(1, 'Working directory is required')
-});
-
-const updateModeSchema = z.object({
-  mode: z.enum(['default', 'acceptEdits', 'bypassPermissions', 'plan'])
-});
-
-/**
- * Helper function to parse and validate JSON with consistent error handling
- */
-async function parseJsonBody<T>(req: Request, schema: z.ZodSchema<T>): Promise<{ success: true; data: T } | { success: false; error: Response }> {
-  try {
-    const body = await req.json();
-    const result = schema.safeParse(body);
-
-    if (!result.success) {
-      const errorMessages = result.error.issues.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
-      return {
-        success: false,
-        error: new Response(JSON.stringify({ error: `Validation failed: ${errorMessages}` }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        })
-      };
-    }
-
-    return { success: true, data: result.data };
-  } catch (error) {
-    console.error('JSON parse error:', error);
-    return {
-      success: false,
-      error: new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      })
-    };
-  }
-}
 
 /**
  * Handle session-related API routes
@@ -86,13 +34,8 @@ export async function handleSessionRoutes(
 
   // POST /api/sessions - Create new session
   if (url.pathname === '/api/sessions' && req.method === 'POST') {
-    const parsed = await parseJsonBody(req, createSessionSchema);
-    if (!parsed.success) {
-      return parsed.error;
-    }
-
-    const { title, workingDirectory, mode } = parsed.data;
-    const session = sessionDb.createSession(title || 'New Chat', workingDirectory, mode || 'general');
+    const body = await req.json() as { title?: string; workingDirectory?: string; mode?: 'general' | 'coder' | 'intense-research' | 'spark' };
+    const session = sessionDb.createSession(body.title || 'New Chat', body.workingDirectory, body.mode || 'general');
     return new Response(JSON.stringify(session), {
       headers: { 'Content-Type': 'application/json' },
     });
@@ -138,23 +81,27 @@ export async function handleSessionRoutes(
   // PATCH /api/sessions/:id - Rename session folder
   if (url.pathname.match(/^\/api\/sessions\/[^/]+$/) && req.method === 'PATCH') {
     const sessionId = url.pathname.split('/').pop()!;
-
-    const parsed = await parseJsonBody(req, renameFolderSchema);
-    if (!parsed.success) {
-      return parsed.error;
-    }
-
-    const { folderName } = parsed.data;
+    const body = await req.json() as { folderName: string };
 
     console.log('📝 API: Rename folder request:', {
       sessionId,
-      folderName
+      folderName: body.folderName
     });
 
-    const result = sessionDb.renameFolderAndSession(sessionId, folderName);
+    const result = sessionDb.renameFolderAndSession(sessionId, body.folderName);
 
     if (result.success) {
       const session = sessionDb.getSession(sessionId);
+
+      // Clear SDK session ID to prevent resume with old directory path in transcripts
+      sessionDb.updateSdkSessionId(sessionId, null);
+
+      // Cleanup SDK stream to force respawn with new cwd on next message
+      sessionStreamManager.cleanupSession(sessionId, 'folder_renamed');
+      activeQueries.delete(sessionId);
+
+      console.log(`🔄 SDK subprocess will restart with new folder path on next message (no resume)`);
+
       return new Response(JSON.stringify({ success: true, session }), {
         headers: { 'Content-Type': 'application/json' },
       });
@@ -179,20 +126,14 @@ export async function handleSessionRoutes(
   // PATCH /api/sessions/:id/directory - Update working directory
   if (url.pathname.match(/^\/api\/sessions\/[^/]+\/directory$/) && req.method === 'PATCH') {
     const sessionId = url.pathname.split('/')[3];
-
-    const parsed = await parseJsonBody(req, updateDirectorySchema);
-    if (!parsed.success) {
-      return parsed.error;
-    }
-
-    const { workingDirectory } = parsed.data;
+    const body = await req.json() as { workingDirectory: string };
 
     console.log('📁 API: Update working directory request:', {
       sessionId,
-      directory: workingDirectory
+      directory: body.workingDirectory
     });
 
-    const success = sessionDb.updateWorkingDirectory(sessionId, workingDirectory);
+    const success = sessionDb.updateWorkingDirectory(sessionId, body.workingDirectory);
 
     if (success) {
       // Get updated session to retrieve mode
@@ -226,20 +167,9 @@ export async function handleSessionRoutes(
   // PATCH /api/sessions/:id/mode - Update permission mode
   if (url.pathname.match(/^\/api\/sessions\/[^/]+\/mode$/) && req.method === 'PATCH') {
     const sessionId = url.pathname.split('/')[3];
+    const body = await req.json() as { mode: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' };
 
-    const parsed = await parseJsonBody(req, updateModeSchema);
-    if (!parsed.success) {
-      return parsed.error;
-    }
-
-    const { mode } = parsed.data;
-
-    console.log('🔐 API: Update permission mode request:', {
-      sessionId,
-      mode
-    });
-
-    const success = sessionDb.updatePermissionMode(sessionId, mode);
+    const success = sessionDb.updatePermissionMode(sessionId, body.mode);
 
     if (success) {
       const session = sessionDb.getSession(sessionId);

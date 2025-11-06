@@ -175,17 +175,17 @@ export function AIIntelligenceHub({
   };
 
   const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-green-600';
-    if (score >= 60) return 'text-blue-600';
-    if (score >= 40) return 'text-yellow-600';
-    return 'text-red-600';
+    if (score >= 80) return 'text-green-600 dark:text-green-400';
+    if (score >= 60) return 'text-blue-600 dark:text-blue-400';
+    if (score >= 40) return 'text-yellow-600 dark:text-yellow-400';
+    return 'text-red-600 dark:text-red-400';
   };
 
   const getScoreBgColor = (score: number) => {
-    if (score >= 80) return 'bg-green-100';
-    if (score >= 60) return 'bg-blue-100';
-    if (score >= 40) return 'bg-yellow-100';
-    return 'bg-red-100';
+    if (score >= 80) return 'bg-green-100 dark:bg-green-900';
+    if (score >= 60) return 'bg-blue-100 dark:bg-blue-900';
+    if (score >= 40) return 'bg-yellow-100 dark:bg-yellow-900';
+    return 'bg-red-100 dark:bg-red-900';
   };
 
   const formatTime = (timestamp: number) => {
@@ -251,7 +251,7 @@ export function AIIntelligenceHub({
         {metrics && (
           <CardContent>
             {/* Main metrics */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
               <div className="text-center">
                 <div className={`text-2xl font-bold ${getScoreColor(metrics.overallScore)}`}>
                   {metrics.overallScore}%
@@ -287,7 +287,7 @@ export function AIIntelligenceHub({
             {/* Weekly progress */}
             <div className="space-y-2">
               <h4 className="text-sm font-medium">Weekly Progress</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="flex items-center space-x-2">
                   <Zap className="h-4 w-4 text-blue-500" />
                   <div className="flex-1">
@@ -295,9 +295,9 @@ export function AIIntelligenceHub({
                       <span>Productivity</span>
                       <span>{metrics.weeklyProgress.productivity}%</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                       <div
-                        className="bg-blue-600 h-2 rounded-full"
+                        className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full"
                         style={{ width: `${metrics.weeklyProgress.productivity}%` }}
                       ></div>
                     </div>
@@ -310,9 +310,9 @@ export function AIIntelligenceHub({
                       <span>Learning</span>
                       <span>{metrics.weeklyProgress.learning}%</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                       <div
-                        className="bg-green-600 h-2 rounded-full"
+                        className="bg-green-600 dark:bg-green-500 h-2 rounded-full"
                         style={{ width: `${metrics.weeklyProgress.learning}%` }}
                       ></div>
                     </div>
@@ -325,9 +325,9 @@ export function AIIntelligenceHub({
                       <span>Habits</span>
                       <span>{metrics.weeklyProgress.habits}%</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                       <div
-                        className="bg-purple-600 h-2 rounded-full"
+                        className="bg-purple-600 dark:bg-purple-500 h-2 rounded-full"
                         style={{ width: `${metrics.weeklyProgress.habits}%` }}
                       ></div>
                     </div>
@@ -340,9 +340,9 @@ export function AIIntelligenceHub({
                       <span>Knowledge</span>
                       <span>{metrics.weeklyProgress.knowledge}%</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                       <div
-                        className="bg-orange-600 h-2 rounded-full"
+                        className="bg-orange-600 dark:bg-orange-500 h-2 rounded-full"
                         style={{ width: `${metrics.weeklyProgress.knowledge}%` }}
                       ></div>
                     </div>
@@ -432,7 +432,7 @@ export function AIIntelligenceHub({
                 {/* AI System Performance */}
                 <div>
                   <h3 className="text-lg font-semibold mb-4">System Performance</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4">
                     <Card>
                       <CardContent className="pt-6">
                         <h4 className="font-medium mb-3 flex items-center">
@@ -563,7 +563,7 @@ export function AIIntelligenceHub({
                     ].map((activity, index) => {
                       const Icon = activity.icon;
                       return (
-                        <div key={index} className="flex items-center space-x-3 p-3 border rounded">
+                        <div key={index} className="flex items-center space-x-3 p-3 border border-input bg-background rounded">
                           <Icon className="h-5 w-5 text-muted-foreground" />
                           <div className="flex-1">
                             <div className="font-medium text-sm">{activity.title}</div>

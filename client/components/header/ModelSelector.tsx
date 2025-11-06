@@ -2,7 +2,7 @@
  * Agent Ironman - Modern chat interface for Claude Agent SDK
  * Copyright (C) 2025 KenKai
  *
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: MIT
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published

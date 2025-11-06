@@ -85,19 +85,19 @@ const TYPE_ICONS = {
 };
 
 const TYPE_COLORS = {
-  snippet: 'bg-blue-100 text-blue-800',
-  pattern: 'bg-purple-100 text-purple-800',
-  solution: 'bg-green-100 text-green-800',
-  reference: 'bg-orange-100 text-orange-800',
-  note: 'bg-gray-100 text-gray-800',
-  insight: 'bg-yellow-100 text-yellow-800'
+  snippet: 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100',
+  pattern: 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-100',
+  solution: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100',
+  reference: 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-100',
+  note: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100',
+  insight: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-100'
 };
 
 const DIFFICULTY_COLORS = {
-  beginner: 'bg-green-100 text-green-800',
-  intermediate: 'bg-blue-100 text-blue-800',
-  advanced: 'bg-orange-100 text-orange-800',
-  expert: 'bg-red-100 text-red-800'
+  beginner: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100',
+  intermediate: 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100',
+  advanced: 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-100',
+  expert: 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100'
 };
 
 export function PersonalKnowledgeBase({

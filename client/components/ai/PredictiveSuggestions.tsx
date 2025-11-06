@@ -56,10 +56,10 @@ interface PredictiveSuggestionsProps {
 }
 
 const PRIORITY_COLORS = {
-  critical: 'bg-red-500 text-white',
-  high: 'bg-orange-500 text-white',
-  medium: 'bg-blue-500 text-white',
-  low: 'bg-gray-500 text-white'
+  critical: 'bg-red-500 dark:bg-red-600 text-white',
+  high: 'bg-orange-500 dark:bg-orange-600 text-white',
+  medium: 'bg-blue-500 dark:bg-blue-600 text-white',
+  low: 'bg-gray-500 dark:bg-gray-600 text-white'
 };
 
 const TYPE_ICONS = {
@@ -71,11 +71,11 @@ const TYPE_ICONS = {
 };
 
 const TYPE_COLORS = {
-  workflow: 'bg-blue-100 text-blue-800',
-  action: 'bg-green-100 text-green-800',
-  learning: 'bg-purple-100 text-purple-800',
-  optimization: 'bg-orange-100 text-orange-800',
-  warning: 'bg-red-100 text-red-800'
+  workflow: 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100',
+  action: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100',
+  learning: 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-100',
+  optimization: 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-100',
+  warning: 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100'
 };
 
 const SOURCE_ICONS = {

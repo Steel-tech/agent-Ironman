@@ -2,7 +2,7 @@
  * Agent Ironman - User Configuration Management
  * Copyright (C) 2025 KenKai
  *
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: MIT
  */
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';

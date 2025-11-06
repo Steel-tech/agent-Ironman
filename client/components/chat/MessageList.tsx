@@ -2,7 +2,7 @@
  * Agent Ironman - Modern chat interface for Claude Agent SDK
  * Copyright (C) 2025 KenKai
  *
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: MIT
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -28,10 +28,11 @@ interface MessageListProps {
   messages: Message[];
   isLoading?: boolean;
   liveTokenCount?: number;
+  scrollContainerRef?: React.RefObject<HTMLDivElement>;
 }
 
-export function MessageList({ messages, isLoading, liveTokenCount = 0 }: MessageListProps) {
-  const parentRef = useRef<HTMLDivElement>(null);
+export function MessageList({ messages, isLoading, liveTokenCount = 0, scrollContainerRef }: MessageListProps) {
+  const parentRef = scrollContainerRef || useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Elapsed time tracking

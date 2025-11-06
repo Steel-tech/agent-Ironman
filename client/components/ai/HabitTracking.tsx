@@ -125,12 +125,12 @@ const CATEGORY_ICONS = {
 };
 
 const CATEGORY_COLORS = {
-  productivity: 'bg-blue-100 text-blue-800',
-  learning: 'bg-purple-100 text-purple-800',
-  health: 'bg-green-100 text-green-800',
-  quality: 'bg-orange-100 text-orange-800',
-  collaboration: 'bg-indigo-100 text-indigo-800',
-  workflow: 'bg-gray-100 text-gray-800'
+  productivity: 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100',
+  learning: 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-100',
+  health: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100',
+  quality: 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-100',
+  collaboration: 'bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-100',
+  workflow: 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100'
 };
 
 export function HabitTracking({
@@ -531,11 +531,11 @@ export function HabitTracking({
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'critical': return 'bg-red-100 text-red-800';
-      case 'high': return 'bg-orange-100 text-orange-800';
-      case 'medium': return 'bg-blue-100 text-blue-800';
-      case 'low': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'critical': return 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100';
+      case 'high': return 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-100';
+      case 'medium': return 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100';
+      case 'low': return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100';
+      default: return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100';
     }
   };
 

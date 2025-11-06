@@ -2,7 +2,7 @@
  * Agent Ironman - Modern chat interface for Claude Agent SDK
  * Copyright (C) 2025 KenKai
  *
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: MIT
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -80,6 +80,33 @@ interface BackgroundProcessExitedEvent extends BaseWebSocketMessage {
   exitCode: number;
 }
 
+interface _LongRunningCommandStartedEvent extends BaseWebSocketMessage {
+  type: 'long_running_command_started';
+  bashId: string;
+  command: string;
+  commandType: 'install' | 'build' | 'test';
+  description?: string;
+  startedAt: number;
+}
+
+interface _CommandOutputChunkEvent extends BaseWebSocketMessage {
+  type: 'command_output_chunk';
+  bashId: string;
+  output: string;
+}
+
+interface _LongRunningCommandCompletedEvent extends BaseWebSocketMessage {
+  type: 'long_running_command_completed';
+  bashId: string;
+  exitCode: number;
+}
+
+interface _LongRunningCommandFailedEvent extends BaseWebSocketMessage {
+  type: 'long_running_command_failed';
+  bashId: string;
+  error: string;
+}
+
 interface TimeoutWarningEvent extends BaseWebSocketMessage {
   type: 'timeout_warning';
   message: string;
@@ -126,12 +153,26 @@ interface CompactStartEvent extends BaseWebSocketMessage {
   preTokens: number;
 }
 
+interface CompactLoadingEvent extends BaseWebSocketMessage {
+  type: 'compact_loading';
+}
+
+interface CompactCompleteEvent extends BaseWebSocketMessage {
+  type: 'compact_complete';
+  preTokens: number;
+}
+
 interface ContextUsageEvent extends BaseWebSocketMessage {
   type: 'context_usage';
   inputTokens: number;
   outputTokens: number;
   contextWindow: number;
   contextPercentage: number;
+}
+
+interface KeepaliveEvent extends BaseWebSocketMessage {
+  type: 'keepalive';
+  elapsedSeconds: number;
 }
 
 export type WebSocketMessage =
@@ -152,7 +193,10 @@ export type WebSocketMessage =
   | ThinkingDeltaEvent
   | SlashCommandsAvailableEvent
   | CompactStartEvent
+  | CompactLoadingEvent
+  | CompactCompleteEvent
   | ContextUsageEvent
+  | KeepaliveEvent
   | BaseWebSocketMessage; // Fallback for unknown types
 
 export type { SlashCommand };

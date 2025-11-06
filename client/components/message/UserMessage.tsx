@@ -2,7 +2,7 @@
  * Agent Ironman - Modern chat interface for Claude Agent SDK
  * Copyright (C) 2025 KenKai
  *
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: MIT
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -64,14 +64,6 @@ export function UserMessage({ message }: UserMessageProps) {
   };
   const isToolResult = 'content' in message && Array.isArray(message.content) &&
     message.content.some(c => typeof c === 'object' && 'tool_use_id' in c);
-
-  // Hide /clear and /compact command messages (they're shown as dividers instead)
-  if (!isToolResult && 'content' in message && typeof message.content === 'string') {
-    const trimmedContent = message.content.trim();
-    if (trimmedContent === '/clear' || trimmedContent === '/compact') {
-      return null;
-    }
-  }
 
   if (isToolResult) {
     const toolResultMessage = message as UserToolResultMessage;

@@ -2,7 +2,7 @@
  * Agent Ironman - Modern chat interface for Claude Agent SDK
  * Copyright (C) 2025 KenKai
  *
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: MIT
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -100,6 +100,16 @@ export interface ThinkingBlock {
   thinking: string;
 }
 
+export interface LongRunningCommandBlock {
+  type: 'long_running_command';
+  bashId: string;
+  command: string;
+  commandType: 'install' | 'build' | 'test';
+  output: string;
+  status: 'running' | 'completed' | 'failed';
+  startedAt: number;
+}
+
 export interface ToolResult {
   tool_use_id: string;
   type: 'tool_result';
@@ -108,7 +118,7 @@ export interface ToolResult {
 
 export interface AssistantMessage extends BaseMessage {
   type: 'assistant';
-  content: (TextBlock | ToolUseBlock | ThinkingBlock)[];
+  content: (TextBlock | ToolUseBlock | ThinkingBlock | LongRunningCommandBlock)[];
   metadata?: {
     id: string;
     model: string;

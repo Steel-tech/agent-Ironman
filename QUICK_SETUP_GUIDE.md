@@ -6,6 +6,7 @@ Vic, all the AI code is already in your codebase! Here's exactly what needs to b
 
 All AI systems are fully implemented and ready to use:
 
+```
 ✅ server/ai/personalLearning.ts        (Personal Learning Engine)
 ✅ server/ai/predictiveSuggestions.ts   (Predictive Suggestions)
 ✅ server/ai/personalKnowledgeBase.ts   (Knowledge Base)
@@ -17,6 +18,7 @@ All AI systems are fully implemented and ready to use:
 ✅ client/components/ai/AIIntelligenceHub.tsx
 
 ✅ docs/AI_INTEGRATION_GUIDE.md         (Complete documentation)
+```
 
 ## 🔧 5-Step Integration
 
@@ -225,7 +227,7 @@ if (message.type === 'ai_suggestion_request') {
 ### Step 5: Test Everything (15 min)
 
 1. Start your server: `npm run dev` or `bun run dev`
-2. Open <http://localhost:3003>
+2. Open http://localhost:3003
 3. Click the AI button in the header
 4. Try the different tabs:
    - Suggestions
@@ -264,29 +266,32 @@ For complete backend integration:
 Everything is already in your codebase at these paths:
 
 **Backend:**
-
+```
 /Users/vics/Documents/agent-ironman/server/ai/
 ├── personalLearning.ts
 ├── predictiveSuggestions.ts
 ├── personalKnowledgeBase.ts
 ├── habitTracking.ts
 └── index.ts
+```
 
 **Frontend:**
-
+```
 /Users/vics/Documents/agent-ironman/client/components/ai/
 ├── PredictiveSuggestions.tsx
 ├── PersonalKnowledgeBase.tsx
 ├── HabitTracking.tsx
 ├── AIIntelligenceHub.tsx
 └── index.ts
+```
 
 **Documentation:**
-
+```
 /Users/vics/Documents/agent-ironman/
 ├── docs/AI_INTEGRATION_GUIDE.md
 ├── IMPLEMENTATION_STATUS.md
 └── QUICK_SETUP_GUIDE.md (this file)
+```
 
 ---
 

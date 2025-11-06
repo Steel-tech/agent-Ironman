@@ -3,46 +3,10 @@
  * Handles directory validation and picker endpoints
  */
 
-import { z } from "zod";
-import { validateDirectory } from "../directoryUtils";
+import { validateDirectory, getDefaultWorkingDirectory } from "../directoryUtils";
 import { openDirectoryPicker } from "../directoryPicker";
-
-// Validation schemas
-const validateDirectorySchema = z.object({
-  directory: z.string().min(1, 'Directory path is required')
-});
-
-/**
- * Helper function to parse and validate JSON with consistent error handling
- */
-async function parseJsonBody<T>(req: Request, schema: z.ZodSchema<T>): Promise<{ success: true; data: T } | { success: false; error: Response }> {
-  try {
-    const body = await req.json();
-    const result = schema.safeParse(body);
-
-    if (!result.success) {
-      const errorMessages = result.error.issues.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
-      return {
-        success: false,
-        error: new Response(JSON.stringify({ error: `Validation failed: ${errorMessages}` }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        })
-      };
-    }
-
-    return { success: true, data: result.data };
-  } catch (error) {
-    console.error('JSON parse error:', error);
-    return {
-      success: false,
-      error: new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      })
-    };
-  }
-}
+import { spawn } from 'child_process';
+import os from 'os';
 
 /**
  * Handle directory-related API routes
@@ -52,16 +16,11 @@ export async function handleDirectoryRoutes(req: Request, url: URL): Promise<Res
 
   // POST /api/validate-directory - Validate directory path
   if (url.pathname === '/api/validate-directory' && req.method === 'POST') {
-    const parsed = await parseJsonBody(req, validateDirectorySchema);
-    if (!parsed.success) {
-      return parsed.error;
-    }
+    const body = await req.json() as { directory: string };
 
-    const { directory } = parsed.data;
+    console.log('🔍 API: Validate directory request:', body.directory);
 
-    console.log('🔍 API: Validate directory request:', directory);
-
-    const validation = validateDirectory(directory);
+    const validation = validateDirectory(body.directory);
 
     return new Response(JSON.stringify({
       valid: validation.valid,
@@ -99,6 +58,49 @@ export async function handleDirectoryRoutes(req: Request, url: URL): Promise<Res
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('❌ Directory picker error:', errorMessage);
+      return new Response(JSON.stringify({
+        success: false,
+        error: errorMessage
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+  }
+
+  // POST /api/open-chat-folder - Open chat folder in system file explorer
+  if (url.pathname === '/api/open-chat-folder' && req.method === 'POST') {
+    console.log('📂 API: Opening chat folder...');
+
+    try {
+      const chatFolderPath = getDefaultWorkingDirectory();
+      console.log('📁 Opening folder:', chatFolderPath);
+
+      // Open the folder in the system file explorer
+      const platform = os.platform();
+
+      if (platform === 'darwin') {
+        // macOS - use 'open' command
+        spawn('open', [chatFolderPath]);
+      } else if (platform === 'win32') {
+        // Windows - use 'explorer' command
+        spawn('explorer', [chatFolderPath]);
+      } else if (platform === 'linux') {
+        // Linux - use 'xdg-open' command
+        spawn('xdg-open', [chatFolderPath]);
+      } else {
+        throw new Error(`Unsupported platform: ${platform}`);
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        path: chatFolderPath
+      }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('❌ Failed to open chat folder:', errorMessage);
       return new Response(JSON.stringify({
         success: false,
         error: errorMessage

@@ -31,7 +31,7 @@ import { PlanApprovalModal } from '../plan/PlanApprovalModal';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useSessionAPI, type Session } from '../../hooks/useSessionAPI';
 import { Menu, Edit3, Brain, Package } from 'lucide-react';
-// import { AIIntelligenceHub } from '../ai/AIIntelligenceHub'; // Temporarily disabled - missing UI components
+import { AIIntelligenceHub } from '../ai/AIIntelligenceHub';
 import { PythonEnvironmentManager } from '../python/PythonEnvironmentManager';
 import type { Message } from '../message/types';
 import { toast } from '../../utils/toast';
@@ -88,7 +88,7 @@ export function ChatContainer() {
   const [pendingPlan, setPendingPlan] = useState<string | null>(null);
 
   // AI Intelligence Hub visibility
-  // const [showAIHub, setShowAIHub] = useState(false); // Temporarily disabled
+  const [showAIHub, setShowAIHub] = useState(false);
 
   // Python Environment Manager visibility
   const [showPythonPanel, setShowPythonPanel] = useState(false);
@@ -920,7 +920,7 @@ export function ChatContainer() {
       />
 
       {/* Main Chat Area */}
-      <div className="flex flex-col flex-1 h-screen" style={{ marginLeft: isSidebarOpen ? '260px' : '0', transition: 'margin-left 0.2s ease-in-out' }}>
+      <div className="flex flex-col flex-1 h-screen" style={{ marginLeft: isSidebarOpen ? '260px' : '0', marginRight: showAIHub ? '600px' : '0', transition: 'margin-left 0.2s ease-in-out, margin-right 0.2s ease-in-out' }}>
         {/* Header - Always visible */}
         <nav className="header">
           <div className="header-content">
@@ -987,15 +987,15 @@ export function ChatContainer() {
                   onChangeDirectory={handleChangeDirectory}
                 />
               )}
-              {/* AI Intelligence Hub Button - Temporarily disabled */}
-              {/* <button
-                className={`header-btn`}
+              {/* AI Intelligence Hub Button */}
+              <button
+                className={`header-btn ${showAIHub ? 'bg-blue-100 dark:bg-blue-900' : ''}`}
                 aria-label="AI Intelligence Hub"
-                onClick={() => {}}
-                title="AI Intelligence Hub (Coming Soon)"
+                onClick={() => setShowAIHub(!showAIHub)}
+                title="AI Intelligence Hub"
               >
                 <Brain className="w-5 h-5" />
-              </button> */}
+              </button>
               {/* Python Environment Manager Button */}
               <button
                 className={`header-btn ${showPythonPanel ? 'bg-blue-100 dark:bg-blue-900' : ''}`}
@@ -1053,9 +1053,22 @@ export function ChatContainer() {
         )}
       </div>
 
-      {/* AI Intelligence Hub Sidebar - Temporarily disabled */}
-      {/* {showAIHub && (
-        <div className="fixed right-0 top-0 h-screen w-96 bg-white border-l shadow-lg overflow-y-auto z-50">
+      {/* AI Intelligence Hub Sidebar */}
+      {showAIHub && (
+        <div className="fixed right-0 top-0 h-screen w-[600px] bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 shadow-lg overflow-y-auto z-50">
+          <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Brain className="w-5 h-5" />
+              AI Intelligence Hub
+            </h2>
+            <button
+              onClick={() => setShowAIHub(false)}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              aria-label="Close AI Hub"
+            >
+              ✕
+            </button>
+          </div>
           <div className="p-4">
             <AIIntelligenceHub
               sessionData={{ sessionId: currentSessionId, mode: currentSessionMode }}
@@ -1067,7 +1080,7 @@ export function ChatContainer() {
             />
           </div>
         </div>
-      )} */}
+      )}
 
       {/* Python Environment Manager Sidebar */}
       {showPythonPanel && currentSessionId && (

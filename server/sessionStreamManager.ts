@@ -3,8 +3,7 @@
  * Based on Microsoft VSCode and chatcode patterns
  */
 
-import type { SDKUserMessage } from "@anthropic-ai/claude-agent-sdk/sdkTypes";
-import type { Query } from "@anthropic-ai/claude-agent-sdk";
+import type { SDKUserMessage, Query } from "@anthropic-ai/claude-agent-sdk";
 import type { ServerWebSocket } from "bun";
 import { AsyncQueue } from "./utils/AsyncQueue";
 
@@ -20,7 +19,7 @@ interface SessionStream {
 
 export class SessionStreamManager {
   private streams = new Map<string, SessionStream>();
-  private readonly SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+  private readonly SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 hours (SDK pre-flight checks can be slow on WSL)
   private readonly MAX_CONCURRENT_SESSIONS = 100;
   private cleanupInterval: Timer | null = null;
 
@@ -53,7 +52,6 @@ export class SessionStreamManager {
         activeWebSocket: null,
       });
 
-      console.log(`🟢 Stream created: ${sessionId.substring(0, 8)}`);
     }
 
     return this.createMessageIterator(sessionId);
@@ -69,9 +67,7 @@ export class SessionStreamManager {
     }
 
     stream.lastActivityAt = Date.now();
-    console.log(`🔵 [DIAG] Enqueueing message to session ${sessionId.substring(0, 8)}, hasWaitingConsumers=${stream.messageQueue.hasWaitingConsumers}`);
     stream.messageQueue.enqueue(content);
-    console.log(`📬 Message queued: ${sessionId.substring(0, 8)} (queue size: ${stream.messageQueue.size})`);
   }
 
   /**
@@ -81,7 +77,6 @@ export class SessionStreamManager {
     const stream = this.streams.get(sessionId);
     if (stream) {
       stream.sdkQuery = query;
-      console.log(`🔗 SDK query registered: ${sessionId.substring(0, 8)}`);
     }
   }
 
@@ -91,13 +86,7 @@ export class SessionStreamManager {
   updateWebSocket(sessionId: string, ws: ServerWebSocket<unknown>): void {
     const stream = this.streams.get(sessionId);
     if (stream) {
-      const wasNull = stream.activeWebSocket === null;
       stream.activeWebSocket = ws;
-      if (wasNull) {
-        console.log(`🔌 WebSocket connected: ${sessionId.substring(0, 8)}`);
-      } else {
-        console.log(`🔄 WebSocket reconnected: ${sessionId.substring(0, 8)}`);
-      }
     }
   }
 
@@ -130,8 +119,7 @@ export class SessionStreamManager {
       return false;
     }
 
-    console.log(`🛑 User-triggered abort: ${sessionId.substring(0, 8)}`);
-    console.log(`🔵 [DIAG] Abort signal sent to SDK subprocess via AbortController`);
+    console.log(`🛑 Generation stopped: ${sessionId.substring(0, 8)}`);
     stream.abortController.abort();
 
     // Send abort signal to client
@@ -170,24 +158,18 @@ export class SessionStreamManager {
   /**
    * Clean up session stream
    */
-  cleanupSession(sessionId: string, reason: string = 'manual'): void {
+  cleanupSession(sessionId: string, _reason: string = 'manual'): void {
     const stream = this.streams.get(sessionId);
     if (!stream) return;
 
-    console.log(`🗑️ Stream cleanup: ${sessionId.substring(0, 8)} (reason: ${reason})`);
-    console.log(`🔵 [DIAG] Cleanup details: createdAt=${new Date(stream.createdAt).toISOString()}, lastActivityAt=${new Date(stream.lastActivityAt).toISOString()}, queueSize=${stream.messageQueue.size}`);
-
     // Abort SDK subprocess
-    console.log(`🔵 [DIAG] Aborting SDK subprocess via AbortController`);
     stream.abortController.abort();
 
     // Complete message queue (stops iteration)
-    console.log(`🔵 [DIAG] Completing AsyncQueue to stop SDK iteration`);
     stream.messageQueue.complete();
 
     // Remove from registry
     this.streams.delete(sessionId);
-    console.log(`🔵 [DIAG] Session removed from registry, active sessions: ${this.streams.size}`);
   }
 
   /**
@@ -217,8 +199,6 @@ export class SessionStreamManager {
       for await (const content of stream.messageQueue) {
         stream.lastActivityAt = Date.now();
 
-        console.log(`📤 Message yielded: ${sessionId.substring(0, 8)}`);
-
         yield {
           type: 'user',
           message: {
@@ -230,7 +210,7 @@ export class SessionStreamManager {
         };
       }
     } catch (error) {
-      console.error(`❌ Stream error: ${sessionId.substring(0, 8)}`, error);
+      console.error(`❌ Stream error for session ${sessionId.substring(0, 8)}:`, error);
       this.cleanupSession(sessionId, 'error');
     }
   }

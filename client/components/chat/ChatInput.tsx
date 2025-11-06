@@ -2,7 +2,7 @@
  * Agent Ironman - Modern chat interface for Claude Agent SDK
  * Copyright (C) 2025 KenKai
  *
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: MIT
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -19,12 +19,14 @@
  */
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Send, Plus, X, Square } from 'lucide-react';
+import { Send, Plus, X, Square, Palette, List } from 'lucide-react';
 import type { FileAttachment } from '../message/types';
 import type { BackgroundProcess } from '../process/BackgroundProcessMonitor';
 import { ModeIndicator } from './ModeIndicator';
 import type { SlashCommand } from '../../hooks/useWebSocket';
 import { CommandTextRenderer } from '../message/CommandTextRenderer';
+import { StyleConfigModal } from './StyleConfigModal';
+import { FeaturesModal } from './FeaturesModal';
 
 interface ChatInputProps {
   value: string;
@@ -53,6 +55,8 @@ export function ChatInput({ value, onChange, onSubmit, onStop, disabled, isGener
   const [attachedFiles, setAttachedFiles] = useState<FileAttachment[]>([]);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [modeIndicatorWidth, setModeIndicatorWidth] = useState(80);
+  const [isStyleConfigOpen, setIsStyleConfigOpen] = useState(false);
+  const [isFeaturesModalOpen, setIsFeaturesModalOpen] = useState(false);
 
   // Slash command autocomplete state
   const [showCommandMenu, setShowCommandMenu] = useState(false);
@@ -469,6 +473,30 @@ export function ChatInput({ value, onChange, onSubmit, onStop, disabled, isGener
                   </button>
                 )}
 
+                {/* Style Configuration button - only in Coder mode */}
+                {mode === 'coder' && (
+                  <button
+                    onClick={() => setIsStyleConfigOpen(true)}
+                    className="btn-icon rounded-lg"
+                    title="Configure styling & design system"
+                    type="button"
+                  >
+                    <Palette size={20} />
+                  </button>
+                )}
+
+                {/* Features button - only in Coder mode */}
+                {mode === 'coder' && (
+                  <button
+                    onClick={() => setIsFeaturesModalOpen(true)}
+                    className="btn-icon rounded-lg"
+                    title="Define features to build"
+                    type="button"
+                  >
+                    <List size={20} />
+                  </button>
+                )}
+
                 {/* Background Process Monitor */}
                 {/* TODO: Fix background process display - temporarily disabled */}
                 {/* {onKillProcess && (
@@ -482,23 +510,66 @@ export function ChatInput({ value, onChange, onSubmit, onStop, disabled, isGener
 
             {/* Right side - Context usage and Send/Stop button */}
             <div className="input-controls-right">
-              {/* Context Usage Display */}
+              {/* Enhanced Context Usage Display */}
               {contextUsage && (
-                <div className="flex items-center gap-2 mr-3 text-xs text-gray-400">
-                  <span title={`${contextUsage.inputTokens.toLocaleString()} / ${contextUsage.contextWindow.toLocaleString()} tokens`}>
-                    Context: {contextUsage.contextPercentage}%
-                  </span>
-                  {/* Visual bar indicator */}
-                  <div className="w-16 h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 ${
-                        contextUsage.contextPercentage >= 90 ? 'bg-red-500' :
-                        contextUsage.contextPercentage >= 70 ? 'bg-yellow-500' :
-                        'bg-green-500'
+                <div className="flex items-center gap-3 mr-3 px-3 py-1.5 rounded-lg bg-[#1a1c1e] border border-white/20 shadow-sm">
+                  {/* Icon with status color */}
+                  <div className={`flex items-center justify-center w-5 h-5 rounded-full ${
+                    contextUsage.contextPercentage >= 90 ? 'bg-red-500/30' :
+                    contextUsage.contextPercentage >= 70 ? 'bg-yellow-500/30' :
+                    'bg-emerald-500/30'
+                  }`}>
+                    <svg
+                      className={`w-3 h-3 ${
+                        contextUsage.contextPercentage >= 90 ? 'text-red-400' :
+                        contextUsage.contextPercentage >= 70 ? 'text-yellow-400' :
+                        'text-emerald-400'
                       }`}
-                      style={{ width: `${Math.min(contextUsage.contextPercentage, 100)}%` }}
-                    />
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
                   </div>
+
+                  {/* Percentage and bar */}
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-baseline gap-2">
+                      <span className={`text-xs font-semibold ${
+                        contextUsage.contextPercentage >= 90 ? 'text-red-400' :
+                        contextUsage.contextPercentage >= 70 ? 'text-yellow-400' :
+                        'text-emerald-400'
+                      }`}>
+                        {contextUsage.contextPercentage}%
+                      </span>
+                      <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">
+                        {contextUsage.inputTokens.toLocaleString()} tokens
+                      </span>
+                    </div>
+
+                    {/* Enhanced progress bar */}
+                    <div className="w-28 h-1 bg-white/20 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ease-out ${
+                          contextUsage.contextPercentage >= 90 ? 'bg-gradient-to-r from-red-500 to-red-400 shadow-[0_0_8px_rgba(239,68,68,0.5)]' :
+                          contextUsage.contextPercentage >= 70 ? 'bg-gradient-to-r from-yellow-500 to-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.5)]' :
+                          'bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
+                        }`}
+                        style={{ width: `${Math.min(contextUsage.contextPercentage, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Status indicator */}
+                  {contextUsage.contextPercentage >= 90 && (
+                    <div className="flex items-center gap-1 text-[10px] text-red-300 font-semibold">
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <span>High</span>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -527,6 +598,36 @@ export function ChatInput({ value, onChange, onSubmit, onStop, disabled, isGener
         </div>
       </form>
       </div>
+
+      {/* Style Configuration Modal */}
+      {isStyleConfigOpen && (
+        <StyleConfigModal
+          onComplete={(prompt) => {
+            setIsStyleConfigOpen(false);
+            onChange(prompt);
+            // Focus textarea after modal closes
+            setTimeout(() => {
+              textareaRef.current?.focus();
+            }, 100);
+          }}
+          onClose={() => setIsStyleConfigOpen(false)}
+        />
+      )}
+
+      {/* Features Modal */}
+      {isFeaturesModalOpen && (
+        <FeaturesModal
+          onComplete={(prompt) => {
+            setIsFeaturesModalOpen(false);
+            onChange(prompt);
+            // Focus textarea after modal closes
+            setTimeout(() => {
+              textareaRef.current?.focus();
+            }, 100);
+          }}
+          onClose={() => setIsFeaturesModalOpen(false)}
+        />
+      )}
     </div>
   );
 }

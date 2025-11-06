@@ -2,7 +2,7 @@
  * Agent Ironman - Modern chat interface for Claude Agent SDK
  * Copyright (C) 2025 KenKai
  *
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: MIT
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -19,14 +19,15 @@
  */
 
 import React, { useState } from 'react';
-import { MessageCircle, Code, Target, Zap } from 'lucide-react';
+import { MessageCircle, Code, Target, Zap, Hammer } from 'lucide-react';
 
 interface ModeOption {
-  id: 'general' | 'coder' | 'intense-research' | 'spark';
+  id: 'general' | 'coder' | 'intense-research' | 'spark' | 'build';
   name: string;
   description: string;
   icon: React.ReactNode;
   gradient: string;
+  isBuildMode?: boolean;
 }
 
 const MODES: ModeOption[] = [
@@ -58,14 +59,23 @@ const MODES: ModeOption[] = [
     icon: <Zap className="size-4" />,
     gradient: 'linear-gradient(90deg, #FAE9A8 0%, #FFF4DA 25%, #ffffff 50%, #FFF4DA 75%, #FAE9A8 100%)',
   },
+  {
+    id: 'build',
+    name: 'Build',
+    description: 'Create projects with guided setup',
+    icon: <Hammer className="size-4" />,
+    gradient: 'linear-gradient(90deg, #FFC7A8 0%, #FFE4DA 25%, #ffffff 50%, #FFE4DA 75%, #FFC7A8 100%)',
+    isBuildMode: true,
+  },
 ];
 
 interface ModeSelectorProps {
   selectedMode: 'general' | 'coder' | 'intense-research' | 'spark';
   onSelectMode: (mode: 'general' | 'coder' | 'intense-research' | 'spark') => void;
+  onOpenBuildWizard?: () => void;
 }
 
-export function ModeSelector({ selectedMode, onSelectMode }: ModeSelectorProps) {
+export function ModeSelector({ selectedMode, onSelectMode, onOpenBuildWizard }: ModeSelectorProps) {
   const [hoveredMode, setHoveredMode] = useState<string | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
@@ -78,15 +88,23 @@ export function ModeSelector({ selectedMode, onSelectMode }: ModeSelectorProps) 
     setHoveredMode(modeId);
   };
 
+  const handleModeClick = (mode: ModeOption) => {
+    if (mode.isBuildMode) {
+      onOpenBuildWizard?.();
+    } else {
+      onSelectMode(mode.id as 'general' | 'coder' | 'intense-research' | 'spark');
+    }
+  };
+
   return (
     <>
       <div className="w-full overflow-auto scrollbar-none flex flex-row items-center justify-center gap-2 flex-wrap text-base">
         {MODES.map((mode, index) => {
-          const isSelected = selectedMode === mode.id;
+          const isSelected = selectedMode === mode.id && !mode.isBuildMode;
           return (
             <button
               key={mode.id}
-              onClick={() => onSelectMode(mode.id)}
+              onClick={() => handleModeClick(mode)}
               onMouseEnter={(e) => handleMouseEnter(mode.id, e)}
               onMouseLeave={() => setHoveredMode(null)}
               className={`promptCard waterfall flex flex-col shrink-0 px-4 py-2 rounded-lg group items-center justify-center text-center ${
@@ -95,14 +113,22 @@ export function ModeSelector({ selectedMode, onSelectMode }: ModeSelectorProps) 
                   : 'border-b-2 border-white/10 hover:border-white/20 text-white/90 hover:text-white transition'
               }`}
               style={{
-              animationDelay: `${index * 60}ms`,
               ...(isSelected ? {
-                background: mode.gradient,
+                backgroundImage: mode.gradient,
                 backgroundSize: '200% auto',
-                animation: 'shimmer 3s linear infinite',
+                animationName: 'shimmer',
+                animationDuration: '3s',
+                animationTimingFunction: 'linear',
+                animationIterationCount: 'infinite',
+                animationDelay: `${index * 60}ms`,
                 opacity: 1,
               } : {
                 backgroundColor: 'rgb(38, 40, 42)', // #26282A
+                animationName: 'waterfall',
+                animationDuration: '0.3s',
+                animationTimingFunction: 'ease-out',
+                animationFillMode: 'forwards',
+                animationDelay: `${index * 60}ms`,
               }),
             }}
           >
