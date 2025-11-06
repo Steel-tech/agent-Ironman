@@ -228,6 +228,20 @@ export async function handleStaticFile(
     }
   }
 
+  // Serve PNG files
+  if (url.pathname.startsWith('/client/') && url.pathname.endsWith('.png')) {
+    const filePath = path.join(binaryDir, url.pathname);
+    const file = Bun.file(filePath);
+
+    if (await file.exists()) {
+      return new Response(file, {
+        headers: {
+          'Content-Type': 'image/png',
+        },
+      });
+    }
+  }
+
   // Not handled by this module
   return undefined;
 }
