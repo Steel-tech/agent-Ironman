@@ -34,6 +34,14 @@ if [ "$NEED_INSTALL" = true ]; then
     echo
 fi
 
+# Kill any existing process on port 3003
+PORT_PID=$(lsof -ti :3003 2>/dev/null || echo "")
+if [ -n "$PORT_PID" ]; then
+    echo "🔄 Clearing port 3003..."
+    kill -9 $PORT_PID 2>/dev/null || true
+    sleep 1
+fi
+
 # Start the server in production mode
 echo "🚀 Starting Agent Ironman..."
 echo
