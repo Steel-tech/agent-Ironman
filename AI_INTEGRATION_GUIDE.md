@@ -6,7 +6,6 @@ Agent Ironman's AI Intelligence Hub represents a complete personal development p
 
 ## Architecture
 
-```
 ┌─────────────────────────────────────────────────────────────┐
 │                    AI Intelligence Hub                      │
 ├─────────────────────────────────────────────────────────────┤
@@ -25,7 +24,6 @@ Agent Ironman's AI Intelligence Hub represents a complete personal development p
 │  │  Analytics  │ │   Memory    │ │    Automation       │   │
 │  └─────────────┘ └─────────────┘ └─────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
-```
 
 ## Core AI Systems
 
@@ -34,12 +32,14 @@ Agent Ironman's AI Intelligence Hub represents a complete personal development p
 **Purpose**: Adapts to your coding patterns, skill level, and learning style to provide personalized assistance.
 
 **Key Features**:
+
 - **Skill Level Assessment**: Tracks your proficiency in different technologies
 - **Learning Pattern Recognition**: Identifies how you learn best (time of day, project type, etc.)
 - **Personalized Responses**: Adapts AI responses based on your knowledge level
 - **Progress Tracking**: Monitors your growth across different skills
 
 **Usage**:
+
 ```typescript
 import { personalLearning } from './server/ai/personalLearning';
 
@@ -63,19 +63,23 @@ await personalLearning.updateLearningPatterns(
 **Purpose**: Proactively suggests workflows, actions, and optimizations based on your patterns and current context.
 
 **Key Features**:
+
 - **Context-Aware Suggestions**: Based on time of day, project, recent activity
 - **Multi-Source Intelligence**: Combines learning patterns, analytics, and project context
 - **Actionable Recommendations**: Each suggestion includes clear implementation steps
 - **Feedback Learning**: Improves suggestions based on your acceptance/rejection patterns
 
 **Suggestion Types**:
+
 - **Workflow Suggestions**: "Run code review workflow" based on recent changes
 - **Optimization Suggestions**: "Optimize development environment" based on productivity metrics
 - **Learning Suggestions**: "Learn React best practices" based on skill gaps
 - **Warning Suggestions**: "Take a break" based on work patterns
 
 **Usage**:
+
 ```typescript
+
 import { predictiveSuggestions } from './server/ai/predictiveSuggestions';
 
 // Generate suggestions
@@ -96,12 +100,14 @@ const suggestions = await predictiveSuggestions.generateSuggestions(context);
 **Purpose**: Automatically builds and maintains a personalized documentation hub from your interactions and learning.
 
 **Key Features**:
+
 - **Automatic Knowledge Extraction**: Learns from conversations, code, and solutions
 - **Smart Categorization**: Organizes knowledge by type, category, and difficulty
 - **Advanced Search**: Full-text search with relevance scoring
 - **Relationship Mapping**: Links related knowledge entries
 
 **Knowledge Types**:
+
 - **Code Snippets**: Reusable code patterns
 - **Solutions**: Problem-solution pairs
 - **Patterns**: Best practices and approaches
@@ -109,6 +115,7 @@ const suggestions = await predictiveSuggestions.generateSuggestions(context);
 - **References**: External documentation links
 
 **Usage**:
+
 ```typescript
 import { personalKnowledgeBase } from './server/ai/personalKnowledgeBase';
 
@@ -133,12 +140,14 @@ const results = await personalKnowledgeBase.searchKnowledge({
 **Purpose**: Tracks development habits and provides intelligent suggestions for improvement.
 
 **Key Features**:
+
 - **Custom Habit Creation**: Define positive, negative, and neutral habits
 - **Streak Tracking**: Monitors consistency and best streaks
 - **Pattern Analysis**: Identifies optimal timing and triggers
 - **Smart Recommendations**: Suggests habit optimizations based on data
 
 **Habit Categories**:
+
 - **Productivity**: Context switching, deep work, focus
 - **Learning**: Study time, skill practice, knowledge retention
 - **Health**: Breaks, ergonomics, work-life balance
@@ -147,6 +156,7 @@ const results = await personalKnowledgeBase.searchKnowledge({
 - **Workflow**: Git habits, build processes, deployment
 
 **Usage**:
+
 ```typescript
 import { habitTracking } from './server/ai/habitTracking';
 
@@ -277,41 +287,33 @@ const updateAIState = async (updates: Partial<AIState>) => {
 
 ### Learning Data Flow
 
-```
 User Interaction → Pattern Analysis → Profile Update → Personalized Response
         ↓                     ↓                    ↓                    ↓
   Code/Commands →   Context Extraction →   Skill Assessment →   Adapted AI Response
         ↓                     ↓                    ↓                    ↓
     Success/Failure →   Learning Update →   Confidence Adjustment →   Improved Future Responses
-```
 
 ### Suggestion Data Flow
 
-```
 Current Context + Historical Data → Pattern Matching → Suggestion Generation → User Feedback
         ↓                           ↓                    ↓                      ↓
   Time, Project, Activity    →   AI Analysis   →   Ranked Suggestions   →   Learning Loop
         ↓                           ↓                    ↓                      ↓
     System State          →   Correlation   →   Actionable Steps    →   Improved Accuracy
-```
 
 ### Knowledge Base Data Flow
 
-```
 User Interactions → Pattern Extraction → Knowledge Creation → Search & Retrieval
         ↓                    ↓                    ↓                    ↓
   Conversations      →   Topic Analysis   →   Categorized Entry   →   Contextual Search
         ↓                    ↓                    ↓                    ↓
     Code Snippets    →   Relationship Map →   Linked Knowledge   →   Intelligent Retrieval
-```
 
 ### Habit Tracking Data Flow
 
-```
 Habit Definition → Tracking → Analytics → Insights → Recommendations
         ↓           ↓          ↓           ↓              ↓
    Custom Goals → Daily Logs → Pattern Recognition → Actionable Insights → Habit Optimization
-```
 
 ## Configuration
 
@@ -517,10 +519,11 @@ const aiDebugger = {
 The AI Intelligence Hub transforms Agent Ironman from a capable assistant into a personalized development powerhouse that learns, adapts, and grows with you. By integrating personal learning, predictive suggestions, knowledge management, and habit tracking, it creates a comprehensive ecosystem for continuous improvement and optimal productivity.
 
 The system is designed to be:
+
 - **Adaptive**: Learns from your patterns and preferences
 - **Proactive**: Suggests actions before you need them
 - **Comprehensive**: Covers all aspects of development workflow
 - **Personal**: Tailored to your specific needs and style
 - **Scalable**: Grows with your skills and requirements
 
-This represents the culmination of transforming Agent Ironman into a true solo developer powerhouse.
+This represents the culmination of transforming Agent Ironman into a true solo developer powerhouse
