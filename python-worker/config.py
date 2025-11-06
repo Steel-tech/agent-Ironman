@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     # Anthropic API
     anthropic_api_key: str = os.getenv("ANTHROPIC_API_KEY", "")
 
+    # OpenAI API (for multi-model support via Pydantic AI)
+    openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
+
     # Vector Store
     chroma_persist_directory: str = os.getenv(
         "CHROMA_PERSIST_DIR",
@@ -41,6 +44,10 @@ class Settings(BaseSettings):
     default_model: str = os.getenv("DEFAULT_MODEL", "claude-3-5-sonnet-20241022")
     max_tokens: int = int(os.getenv("MAX_TOKENS", "8000"))
     temperature: float = float(os.getenv("TEMPERATURE", "0.7"))
+
+    # Pydantic AI Settings
+    pydantic_ai_log_level: str = os.getenv("PYDANTIC_AI_LOG_LEVEL", "INFO")
+    enable_multi_model: bool = os.getenv("ENABLE_MULTI_MODEL", "false").lower() == "true"
 
     class Config:
         case_sensitive = False

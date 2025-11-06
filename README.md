@@ -83,6 +83,12 @@ Agent Ironman is a **desktop-first chat interface** that brings the power of Ant
 - **Bun Runtime** - Ultra-fast builds and execution
 - **Zero Config** - SQLite just works
 
+### 📊 Observability & Monitoring
+- **Langfuse Integration** - LLM cost tracking and performance monitoring
+- **Request Tracing** - Full visibility into all AI interactions
+- **Token Analytics** - Monitor usage and optimize costs
+- **Dashboard** - Beautiful web interface for insights
+
 ---
 
 ## 🚀 Installation
@@ -303,6 +309,12 @@ bun test --watch
 - SQLite (session persistence)
 - WebSocket (real-time streaming)
 - MCP (Model Context Protocol)
+- Langfuse (LLM observability & cost tracking)
+
+**Python Workers (Optional):**
+- Celery (task queue)
+- Pydantic AI (type-safe agents)
+- Redis (message broker)
 
 ### Project Structure
 
@@ -381,6 +393,40 @@ export const MCP_SERVERS_BY_PROVIDER: Record<ProviderType, Record<string, McpSer
 **System Prompt:**
 
 Customize Claude's behavior in `server/systemPrompt.ts`.
+
+### Observability & Monitoring
+
+**Langfuse Integration:**
+
+Agent Ironman includes built-in observability with [Langfuse](https://langfuse.com) for:
+- 📊 Cost tracking and token usage monitoring
+- 🔍 Request tracing across all LLM calls
+- ⏱️ Performance metrics and latency tracking
+- 🐛 Debugging with full input/output inspection
+
+**Quick Setup:**
+
+1. Sign up at [cloud.langfuse.com](https://cloud.langfuse.com)
+2. Add credentials to `.env`:
+   ```env
+   LANGFUSE_PUBLIC_KEY=pk-lf-...
+   LANGFUSE_SECRET_KEY=sk-lf-...
+   LANGFUSE_BASE_URL=https://cloud.langfuse.com
+   ```
+3. Restart Agent Ironman - traces appear automatically!
+
+📖 **Full documentation:** See [`docs/LANGFUSE_INTEGRATION.md`](docs/LANGFUSE_INTEGRATION.md) for:
+- Detailed setup instructions
+- Python worker instrumentation
+- Dashboard navigation guide
+- Cost optimization tips
+- Troubleshooting
+
+**Optional: Python Workers**
+
+For type-safe Python agents with [Pydantic AI](https://ai.pydantic.dev):
+
+📖 See [`docs/PYDANTIC_AI_INTEGRATION.md`](docs/PYDANTIC_AI_INTEGRATION.md)
 
 ---
 

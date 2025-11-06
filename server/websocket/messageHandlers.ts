@@ -32,6 +32,11 @@ import {
   logError,
   ErrorRecovery,
 } from "./errors";
+import {
+  createTrace,
+  createGeneration,
+  isLangfuseEnabled,
+} from "../observability/langfuse";
 
 export interface ChatWebSocketData {
   type: 'hot-reload' | 'chat';
@@ -610,6 +615,36 @@ Run bash commands with the understanding that this is your current working direc
         console.log(`🔵 [DIAG] About to spawn SDK subprocess for session ${sessionId.toString().substring(0, 8)}`);
         console.log(`🔵 [DIAG] Query options: model=${queryOptions.model}, cwd=${queryOptions.cwd}, resume=${!!queryOptions.resume}`);
 
+        // Langfuse: Create trace for observability
+        const langfuseTrace = isLangfuseEnabled() ? createTrace(
+          sessionId as string,
+          undefined, // userId - add if available
+          {
+            model: queryOptions.model as string,
+            permissionMode: session.permission_mode,
+            mode: session.mode,
+          }
+        ) : null;
+
+        // Langfuse: Create generation span
+        const langfuseGeneration = langfuseTrace ? createGeneration(langfuseTrace, {
+          name: 'claude-agent-sdk-query',
+          model: queryOptions.model as string,
+          input: {
+            message: promptText,
+            systemPrompt: (queryOptions.systemPrompt as string)?.substring(0, 500) + '...' // Truncate for readability
+          },
+          modelParameters: {
+            permissionMode: queryOptions.permissionMode,
+            mode: session.mode,
+            hasResume: !!queryOptions.resume,
+          }
+        }) : null;
+
+        if (langfuseTrace) {
+          console.log('📊 Langfuse trace created for session');
+        }
+
         const result = query({
           prompt: messageStream,
           options: queryOptions
@@ -775,6 +810,18 @@ Run bash commands with the understanding that this is your current working direc
                         sessionId: sessionId,
                       })
                     );
+
+                    // Langfuse: End generation with token usage
+                    if (langfuseGeneration) {
+                      langfuseGeneration.end({
+                        output: currentTextResponse || currentMessageContent,
+                        usage: {
+                          input: usage.inputTokens,
+                          output: usage.outputTokens,
+                        },
+                      });
+                      console.log('📊 Langfuse generation ended with usage data');
+                    }
                   }
                 }
 

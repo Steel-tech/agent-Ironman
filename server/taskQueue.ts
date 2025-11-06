@@ -239,6 +239,96 @@ class TaskQueueClient {
       },
     });
   }
+
+  // ==================== Pydantic AI Tasks ====================
+
+  /**
+   * Enqueue type-safe code analysis with Pydantic AI
+   */
+  async enqueuePydanticCodeAnalysis(
+    code: string,
+    language?: string,
+    context?: string,
+    useOpenAI: boolean = false
+  ): Promise<TaskResult> {
+    return this.enqueueTask({
+      taskName: "pydantic.analyze_code",
+      kwargs: {
+        code,
+        language,
+        context,
+        use_openai: useOpenAI,
+      },
+    });
+  }
+
+  /**
+   * Enqueue type-safe data analysis with Pydantic AI
+   */
+  async enqueuePydanticDataAnalysis(
+    dataDescription: string,
+    datasetSummary?: string,
+    specificQuestions?: string[],
+    useOpenAI: boolean = false
+  ): Promise<TaskResult> {
+    return this.enqueueTask({
+      taskName: "pydantic.analyze_data",
+      kwargs: {
+        data_description: dataDescription,
+        dataset_summary: datasetSummary,
+        specific_questions: specificQuestions,
+        use_openai: useOpenAI,
+      },
+    });
+  }
+
+  /**
+   * Enqueue long-running task with checkpointing
+   */
+  async enqueuePydanticLongTask(
+    taskDescription: string,
+    checkpointData?: Record<string, any>
+  ): Promise<TaskResult> {
+    return this.enqueueTask({
+      taskName: "pydantic.run_long_task",
+      kwargs: {
+        task_description: taskDescription,
+        checkpoint_data: checkpointData,
+      },
+    });
+  }
+
+  /**
+   * Compare Claude vs GPT-4 code analysis side-by-side
+   */
+  async enqueuePydanticModelComparison(
+    code: string,
+    language?: string
+  ): Promise<TaskResult> {
+    return this.enqueueTask({
+      taskName: "pydantic.compare_models",
+      kwargs: {
+        code,
+        language,
+      },
+    });
+  }
+
+  /**
+   * Batch validate multiple code files
+   */
+  async enqueuePydanticBatchValidation(
+    codeFiles: Array<{ filename: string; code: string; language?: string }>,
+    useOpenAI: boolean = false
+  ): Promise<TaskResult> {
+    return this.enqueueTask({
+      taskName: "pydantic.validate_code_batch",
+      kwargs: {
+        code_files: codeFiles,
+        use_openai: useOpenAI,
+      },
+    });
+  }
 }
 
 // Singleton instance
@@ -279,5 +369,82 @@ export const AITasks = {
    */
   async indexDocument(filePath: string, collection: string) {
     return taskQueue.enqueueDocumentWorkflow(filePath, collection);
+  },
+
+  // ==================== Pydantic AI Helpers ====================
+
+  /**
+   * Analyze code quality with type-safe Pydantic AI agent
+   * @param code - Source code to analyze
+   * @param language - Programming language (optional, auto-detected)
+   * @param options - Additional options
+   * @returns Task result with validated CodeAnalysisResult
+   */
+  async analyzeCodeWithPydantic(
+    code: string,
+    language?: string,
+    options?: { context?: string; useOpenAI?: boolean }
+  ) {
+    return taskQueue.enqueuePydanticCodeAnalysis(
+      code,
+      language,
+      options?.context,
+      options?.useOpenAI || false
+    );
+  },
+
+  /**
+   * Analyze data with type-safe Pydantic AI agent
+   * @param dataDescription - Description of the dataset
+   * @param options - Additional options
+   * @returns Task result with validated DataAnalysisResult
+   */
+  async analyzeDataWithPydantic(
+    dataDescription: string,
+    options?: {
+      datasetSummary?: string;
+      specificQuestions?: string[];
+      useOpenAI?: boolean;
+    }
+  ) {
+    return taskQueue.enqueuePydanticDataAnalysis(
+      dataDescription,
+      options?.datasetSummary,
+      options?.specificQuestions,
+      options?.useOpenAI || false
+    );
+  },
+
+  /**
+   * Run long-running task with checkpointing support
+   * @param taskDescription - What the task should accomplish
+   * @param checkpointData - Previous checkpoint for resumption
+   * @returns Task result with LongRunningTaskResult
+   */
+  async runLongTask(taskDescription: string, checkpointData?: Record<string, any>) {
+    return taskQueue.enqueuePydanticLongTask(taskDescription, checkpointData);
+  },
+
+  /**
+   * Compare Claude vs GPT-4 code analysis side-by-side
+   * @param code - Source code to analyze
+   * @param language - Programming language
+   * @returns Comparison results from both models
+   */
+  async compareModels(code: string, language?: string) {
+    return taskQueue.enqueuePydanticModelComparison(code, language);
+  },
+
+  /**
+   * Batch validate multiple code files
+   * @param files - Array of code files to analyze
+   * @param useOpenAI - Use GPT-4 instead of Claude
+   * @returns Batch validation results
+   */
+  async batchValidateCode(
+    files: Array<{ filename: string; code: string; language?: string }>,
+    useOpenAI: boolean = false
+  ) {
+    return taskQueue.enqueuePydanticBatchValidation(files, useOpenAI);
   },
 };

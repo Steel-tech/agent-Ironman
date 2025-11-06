@@ -19,6 +19,7 @@
     "emitDecoratorMetadata": true,
     "types": ["node", "bun"],
     "jsx": "react-jsx",
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "@/*": ["client/*"]
