@@ -24,7 +24,7 @@ import { PreLoader } from "./components/preloader/PreLoader";
 import { Toaster } from "sonner";
 
 const App: React.FC = () => {
-  const [showPreLoader, setShowPreLoader] = useState(true);
+  const [showPreLoader, setShowPreLoader] = useState(false); // Disabled preloader temporarily
 
   // Preload the agent icon to prevent broken image on first render
   useEffect(() => {
