@@ -1678,7 +1678,7 @@ export function AssistantMessage({ message }: AssistantMessageProps) {
           {/* Header with avatar and model name */}
           <div className="message-assistant-header">
             <img
-              src="/client/agent-ironman.svg"
+              src="/client/ironman-helmet.png"
               className="message-assistant-avatar"
               alt="Agent Ironman"
             />

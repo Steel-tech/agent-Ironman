@@ -64,7 +64,7 @@ export function PreLoader({ onComplete, duration = 2000 }: PreLoaderProps) {
     >
       <div className="preloader-content" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
         <img
-          src="/client/agent-ironman.svg"
+          src="/client/ironman-helmet.png"
           alt="Agent Ironman"
           className="preloader-icon"
           style={{ width: '48px', height: '48px', objectFit: 'contain' }}

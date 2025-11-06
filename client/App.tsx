@@ -29,7 +29,7 @@ const App: React.FC = () => {
   // Preload the agent icon to prevent broken image on first render
   useEffect(() => {
     const img = new Image();
-    img.src = '/client/agent-ironman.svg';
+    img.src = '/client/ironman-helmet.png';
   }, []);
 
   return (

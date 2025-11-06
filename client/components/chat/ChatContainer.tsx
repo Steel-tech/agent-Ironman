@@ -949,15 +949,15 @@ export function ChatContainer() {
                   <div className="flex items-center gap-3">
                     {!isSidebarOpen && (
                       <img
-                        src="/client/agent-ironman.svg"
+                        src="/client/ironman-helmet.png"
                         alt="Agent Ironman"
                         className="header-icon"
                         loading="eager"
                         onError={(e) => {
-                          console.error('Failed to load agent-ironman.svg');
+                          console.error('Failed to load ironman-helmet.png');
                           // Retry loading
                           setTimeout(() => {
-                            e.currentTarget.src = '/client/agent-ironman.svg?' + Date.now();
+                            e.currentTarget.src = '/client/ironman-helmet.png?' + Date.now();
                           }, 100);
                         }}
                       />
