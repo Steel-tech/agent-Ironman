@@ -16,7 +16,7 @@
 
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { getSystemPrompt } from '../systemPrompt';
-import { projectMemory } from '../memory/projectMemoryService';
+import { getProjectMemoryService } from '../memory/projectMemoryService';
 
 export interface LearningPattern {
   id: string;
@@ -493,8 +493,8 @@ ${relevantPatterns.map(pattern =>
 - Overall: ${this.profile.skillLevel.overall}%
 - Coding: ${this.profile.skillLevel.coding}%
 - Architecture: ${this.profile.skillLevel.architecture}%
-- Debugging: ${this.profile.skillLevel.debugging}%
-- Testing: ${this.profile.skillLevel.testing}%
+- Debugging: ${profile.skillLevel.debugging}%
+- Testing: ${profile.skillLevel.testing}%
 - Documentation: ${this.profile.skillLevel.documentation}%
 
 ### Recent Insights
@@ -779,24 +779,8 @@ Respond with JSON: {"predictions": [{"action": "...", "confidence": ..., "reason
       recentActivity,
     };
   }
-
-  async getProfile(): Promise<PersonalLearningProfile> {
-    return this.profile;
-  }
 }
 
-// Export type for compatibility
-export type SkillLevel = 'beginner' | 'intermediate' | 'advanced' | 'expert';
-
-// Singleton instance - requires session ID
-let globalLearningEngine: PersonalLearningEngine | null = null;
-
-export function getPersonalLearning(sessionId: string = 'default'): PersonalLearningEngine {
-  if (!globalLearningEngine) {
-    globalLearningEngine = new PersonalLearningEngine(sessionId);
-  }
-  return globalLearningEngine;
-}
-
-// Default export for convenience
-export const personalLearning = getPersonalLearning();
+// Export singleton instance for convenience (session-agnostic operations)
+// For session-specific operations, create new instances
+export const personalLearning = new PersonalLearningEngine('default');

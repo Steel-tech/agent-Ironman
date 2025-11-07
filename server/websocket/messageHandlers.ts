@@ -5,7 +5,7 @@
 
 import type { ServerWebSocket } from "bun";
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import type { HookInput } from "@anthropic-ai/claude-agent-sdk/sdkTypes";
+import type { HookInput, SDKCompactBoundaryMessage } from "@anthropic-ai/claude-agent-sdk";
 import { sessionDb } from "../database";
 import { getSystemPrompt, injectWorkingDirIntoAgents } from "../systemPrompt";
 import { AVAILABLE_MODELS } from "../../client/config/models";
@@ -20,27 +20,26 @@ import { parseApiError, getUserFriendlyMessage } from "../utils/apiErrors";
 import { TimeoutController } from "../utils/timeout";
 import { sessionStreamManager } from "../sessionStreamManager";
 import { expandSlashCommand } from "../slashCommandExpander";
-import { getAIServices } from "../server";
-import {
-  JsonParseError,
-  ValidationError,
-  SessionError,
-  SdkError,
-  InternalError,
-  WebSocketError,
-  sendError,
-  logError,
-  ErrorRecovery,
-} from "./errors";
-import {
-  createTrace,
-  createGeneration,
-  isLangfuseEnabled,
-} from "../observability/langfuse";
+import { pythonExecute, pythonPackageManage, pythonEnvironmentManage, pythonAutoSetup } from "../tools/pythonExecute";
+import { getWorkflowEngine, getAIServices, getPythonManager } from "../server";
 
-export interface ChatWebSocketData {
+interface ChatWebSocketData {
   type: 'hot-reload' | 'chat';
   sessionId?: string;
+}
+
+/**
+ * Type guard to check if a message is a compact boundary message
+ */
+function isCompactBoundaryMessage(message: unknown): message is SDKCompactBoundaryMessage {
+  return (
+    typeof message === 'object' &&
+    message !== null &&
+    'type' in message &&
+    message.type === 'system' &&
+    'subtype' in message &&
+    message.subtype === 'compact_boundary'
+  );
 }
 
 // Build model mapping from configuration
@@ -59,86 +58,32 @@ export async function handleWebSocketMessage(
 ): Promise<void> {
   if (ws.data?.type === 'hot-reload') return;
 
-  // Generate request ID for tracking
-  const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-  let parsedData: Record<string, unknown> | null = null;
-  let sessionId: string | undefined;
-
   try {
-    // Step 1: Parse JSON with specific error handling
-    try {
-      parsedData = JSON.parse(message);
-    } catch (parseError) {
-      throw new JsonParseError(
-        parseError instanceof Error ? parseError.message : 'Invalid JSON',
-        message,
-        parseError,
-        ws.data?.sessionId
-      );
+    const data = JSON.parse(message);
+
+    if (data.type === 'chat') {
+      await handleChatMessage(ws, data, activeQueries);
+    } else if (data.type === 'approve_plan') {
+      await handleApprovePlan(ws, data, activeQueries);
+    } else if (data.type === 'set_permission_mode') {
+      await handleSetPermissionMode(ws, data, activeQueries);
+    } else if (data.type === 'kill_background_process') {
+      await handleKillBackgroundProcess(ws, data);
+    } else if (data.type === 'stop_generation') {
+      await handleStopGeneration(ws, data);
+    } else if (data.type === 'ai_request') {
+      await handleAIRequest(ws, data);
+    } else if (data.type === 'python_request') {
+      await handlePythonRequest(ws, data);
+    } else if (data.type === 'workflow_request') {
+      await handleWorkflowRequest(ws, data);
     }
-
-    // Extract sessionId for error context
-    sessionId = parsedData.sessionId as string | undefined;
-
-    // Step 2: Validate message type
-    if (!parsedData.type || typeof parsedData.type !== 'string') {
-      throw new ValidationError(
-        'Missing or invalid message type',
-        ['type'],
-        parsedData,
-        sessionId
-      );
-    }
-
-    // Step 3: Route to appropriate handler with error wrapping
-    try {
-      if (parsedData.type === 'chat') {
-        await handleChatMessage(ws, parsedData, activeQueries);
-      } else if (parsedData.type === 'approve_plan') {
-        await handleApprovePlan(ws, parsedData, activeQueries);
-      } else if (parsedData.type === 'set_permission_mode') {
-        await handleSetPermissionMode(ws, parsedData, activeQueries);
-      } else if (parsedData.type === 'kill_background_process') {
-        await handleKillBackgroundProcess(ws, parsedData);
-      } else if (parsedData.type === 'stop_generation') {
-        await handleStopGeneration(ws, parsedData);
-      } else if (parsedData.type === 'ai_suggestion_request') {
-        await handleAISuggestionRequest(ws, parsedData);
-      } else if (parsedData.type === 'ai_knowledge_search') {
-        await handleAIKnowledgeSearch(ws, parsedData);
-      } else if (parsedData.type === 'ai_habit_track') {
-        await handleAIHabitTrack(ws, parsedData);
-      } else if (parsedData.type === 'python_env_status') {
-        await handlePythonEnvStatus(ws, parsedData);
-      } else if (parsedData.type === 'python_package_install') {
-        await handlePythonPackageInstall(ws, parsedData);
-      } else if (parsedData.type === 'python_script_run') {
-        await handlePythonScriptRun(ws, parsedData);
-      } else {
-        throw new ValidationError(
-          `Unknown message type: ${parsedData.type}`,
-          [],
-          parsedData,
-          sessionId
-        );
-      }
-    } catch (handlerError) {
-      // Wrap handler errors with context
-      if (handlerError instanceof WebSocketError) {
-        throw handlerError; // Re-throw WebSocketErrors as-is
-      }
-
-      throw new InternalError(
-        `Handler error for type '${parsedData.type}'`,
-        handlerError,
-        { messageType: parsedData.type, requestId },
-        sessionId
-      );
-    }
-
   } catch (error) {
-    // Centralized error handling with structured logging
-    sendError(ws, error, sessionId, requestId);
+    console.error('WebSocket message error:', error);
+    ws.send(JSON.stringify({
+      type: 'error',
+      error: error instanceof Error ? error.message : 'Invalid message format'
+    }));
   }
 }
 
@@ -149,24 +94,20 @@ async function handleChatMessage(
 ): Promise<void> {
   const { content, sessionId, model, timezone } = data;
 
-  // Validate required fields
-  const missingFields: string[] = [];
-  if (!content) missingFields.push('content');
-  if (!sessionId) missingFields.push('sessionId');
-
-  if (missingFields.length > 0) {
-    throw new ValidationError(
-      'Missing required fields for chat message',
-      missingFields,
-      data,
-      sessionId as string | undefined
-    );
+  if (!content || !sessionId) {
+    ws.send(JSON.stringify({ type: 'error', error: 'Missing content or sessionId' }));
+    return;
   }
 
   // Get session for working directory access
   const session = sessionDb.getSession(sessionId as string);
   if (!session) {
-    throw new SessionError(sessionId as string, 'not_found');
+    console.error('❌ Session not found:', sessionId);
+    ws.send(JSON.stringify({
+      type: 'error',
+      message: 'Session not found'
+    }));
+    return;
   }
 
   const workingDir = session.working_directory;
@@ -175,13 +116,6 @@ async function handleChatMessage(
   const imagePaths: string[] = [];
   const filePaths: string[] = [];
 
-  // Debug: log the content structure
-  console.log('🔍 Content type:', typeof content);
-  console.log('🔍 Content is array?', Array.isArray(content));
-  if (Array.isArray(content)) {
-    console.log('🔍 Content blocks:', content.map((b: Record<string, unknown>) => ({ type: b?.type, hasSource: !!b?.source, hasData: !!b?.data })));
-  }
-
   // Check if content is an array (contains blocks like text/image/file)
   const contentIsArray = Array.isArray(content);
   if (contentIsArray) {
@@ -189,29 +123,28 @@ async function handleChatMessage(
 
     // Extract and save images and files
     for (const block of contentBlocks) {
-      console.log('🔍 Processing block:', { type: block.type, hasSource: !!block.source, hasData: !!block.data });
-
       // Handle images
       if (block.type === 'image' && typeof block.source === 'object') {
         const source = block.source as Record<string, unknown>;
-        console.log('🔍 Image source:', { type: source.type, hasData: !!source.data });
         if (source.type === 'base64' && typeof source.data === 'string') {
           // Save image to pictures folder
           const base64Data = `data:${source.media_type || 'image/png'};base64,${source.data}`;
           const imagePath = saveImageToSessionPictures(base64Data, sessionId as string, workingDir);
           imagePaths.push(imagePath);
-          console.log('✅ Image saved and path added:', imagePath);
         }
       }
 
       // Handle document files
       if (block.type === 'document' && typeof block.data === 'string' && typeof block.name === 'string') {
-        console.log('🔍 Document file:', { name: block.name });
         const filePath = saveFileToSessionFiles(block.data as string, block.name as string, sessionId as string, workingDir);
         filePaths.push(filePath);
-        console.log('✅ File saved and path added:', filePath);
       }
     }
+  }
+
+  // Log attachments if any were saved
+  if (imagePaths.length > 0 || filePaths.length > 0) {
+    console.log(`📎 Attachments: ${imagePaths.length} image(s), ${filePaths.length} file(s)`);
   }
 
   // Extract text content for prompt
@@ -226,6 +159,18 @@ async function handleChatMessage(
 
   // Check for special built-in commands that need server-side handling
   const trimmedPrompt = promptText.trim();
+
+  // Handle /compact command - show loading state while compacting
+  if (trimmedPrompt === '/compact') {
+    console.log('🗜️ /compact command detected - sending loading message');
+
+    // Send loading message to client
+    ws.send(JSON.stringify({
+      type: 'compact_loading',
+      sessionId: sessionId,
+    }));
+    // Continue to SDK - it will handle the actual compaction
+  }
 
   // Handle /clear command - clear AI context but keep visual chat history
   if (trimmedPrompt === '/clear') {
@@ -306,18 +251,16 @@ async function handleChatMessage(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('❌ Provider configuration error:', errorMessage);
-
-    throw new SdkError(
-      `Provider configuration failed: ${errorMessage}`,
-      error,
-      sessionId as string,
-      false
-    );
+    ws.send(JSON.stringify({
+      type: 'error',
+      message: errorMessage
+    }));
+    return;
   }
 
-  // Get MCP servers for this provider
-  const mcpServers = getMcpServers(providerType);
-  const allowedMcpTools = getAllowedMcpTools(providerType);
+  // Get MCP servers for this provider (model-specific filtering for GLM)
+  const mcpServers = getMcpServers(providerType, apiModelId);
+  const allowedMcpTools = getAllowedMcpTools(providerType, apiModelId);
 
   // Minimal request logging - one line summary
   // Note: At this point we haven't checked history yet, so we use isNewStream for subprocess status
@@ -327,13 +270,19 @@ async function handleChatMessage(
   const validation = validateDirectory(workingDir);
   if (!validation.valid) {
     console.error('❌ Working directory invalid:', validation.error);
+    ws.send(JSON.stringify({
+      type: 'error',
+      message: `Working directory error: ${validation.error}`
+    }));
+    return;
+  }
 
-    throw new ValidationError(
-      `Working directory error: ${validation.error}`,
-      [],
-      { workingDir, validationError: validation.error },
-      sessionId as string
-    );
+  // Warn if on WSL with Windows filesystem (10-20x performance penalty)
+  if (process.platform === 'linux' && workingDir.startsWith('/mnt/')) {
+    console.warn('⚠️  WARNING: Working directory is on Windows filesystem (WSL)');
+    console.warn(`   Path: ${workingDir}`);
+    console.warn('   This causes 10-20x slower file I/O operations');
+    console.warn('   Move project to Linux filesystem (~/projects/) for better performance');
   }
 
   // For existing streams: Update WebSocket, enqueue message, and return
@@ -366,6 +315,17 @@ All file paths should be relative to this directory or use absolute paths within
 Run bash commands with the understanding that this is your current working directory.
 `;
 
+    // Debug: Log system prompt size
+    const promptWordCount = systemPromptWithContext.split(/\s+/).length;
+    const estimatedTokens = Math.round(promptWordCount * 1.3);
+    console.log(`📏 System prompt size: ${promptWordCount} words (~${estimatedTokens} tokens)`);
+
+    // Debug: Write full system prompt to temp file for inspection
+    const fs = await import('fs');
+    const debugPath = `/tmp/system-prompt-${session.mode || 'general'}-debug.txt`;
+    fs.writeFileSync(debugPath, systemPromptWithContext);
+    console.log(`📝 Full system prompt written to: ${debugPath}`);
+
     // Inject working directory context into all custom agent prompts
     const agentsWithWorkingDir = injectWorkingDirIntoAgents(AGENT_REGISTRY, workingDir);
 
@@ -392,7 +352,7 @@ Run bash commands with the understanding that this is your current working direc
       includePartialMessages: true,
       agents: agentsWithWorkingDir, // Register custom agents with working dir context
       cwd: workingDir, // Set working directory for all tool executions
-      executable: process.execPath, // Use absolute path to current Bun runtime (works on all platforms including WSL)
+      // Let SDK manage its own subprocess spawning - don't override executable
       // abortController will be added after stream creation
 
       // Capture stderr from SDK's bundled CLI for debugging and error context
@@ -404,7 +364,7 @@ Run bash commands with the understanding that this is your current working direc
           return; // Skip this line entirely
         }
 
-        console.error('🔴 SDK CLI stderr:', trimmedData);
+        console.error(`🔴 SDK CLI stderr [${provider}/${apiModelId}]:`, trimmedData);
 
         // Only capture lines that look like actual errors, not debug output or command echoes
         const lowerData = trimmedData.toLowerCase();
@@ -452,80 +412,448 @@ Run bash commands with the understanding that this is your current working direc
       queryOptions.allowedTools = allowedMcpTools;
     }
 
-    // Add PreToolUse hook to intercept background Bash commands
+    // Add PreToolUse hook to intercept background Bash commands and long-running commands
     queryOptions.hooks = {
       PreToolUse: [{
         hooks: [async (input: HookInput, toolUseID: string | undefined) => {
           // PreToolUse hook has tool_name and tool_input properties
           type PreToolUseInput = HookInput & { tool_name: string; tool_input: Record<string, unknown> };
 
-          console.log('🔧 PreToolUse hook triggered:', { event: input.hook_event_name, tool: (input as PreToolUseInput).tool_name });
-
           if (input.hook_event_name !== 'PreToolUse') return {};
 
           const { tool_name, tool_input } = input as PreToolUseInput;
-          console.log('🔧 Tool name:', tool_name, 'Tool input:', JSON.stringify(tool_input).slice(0, 200));
+
+          // Handle Python tools
+          if (tool_name === 'PythonExecute') {
+            const pythonInput = tool_input as Record<string, unknown>;
+            const code = pythonInput.code as string;
+            const environment = pythonInput.environment as string | undefined;
+            const workingDirectory = pythonInput.workingDirectory as string | undefined;
+
+            console.log(`🐍 Executing Python code in ${environment || 'default'} environment`);
+
+            try {
+              const result = await pythonExecute(sessionId as string, {
+                code,
+                environment,
+                workingDirectory: workingDirectory || workingDir,
+              });
+
+              return {
+                tool_result: {
+                  type: 'tool_result',
+                  tool_use_id: toolUseID,
+                  content: [{
+                    type: 'text',
+                    text: result.success
+                      ? `✅ Python execution successful (took ${result.executionTime}ms)\n\n**Output:**\n${result.stdout}${result.stderr ? `\n\n**Stderr:**\n${result.stderr}` : ''}`
+                      : `❌ Python execution failed\n\n**Error:**\n${result.stderr}\n\n**Exit Code:** ${result.exitCode}`,
+                  }],
+                  is_error: !result.success,
+                },
+              };
+            } catch (error) {
+              return {
+                tool_result: {
+                  type: 'tool_result',
+                  tool_use_id: toolUseID,
+                  content: [{
+                    type: 'text',
+                    text: `❌ Python execution error: ${error instanceof Error ? error.message : String(error)}`,
+                  }],
+                  is_error: true,
+                },
+              };
+            }
+          }
+
+          if (tool_name === 'PythonPackageManage') {
+            const packageInput = tool_input as Record<string, unknown>;
+            const action = packageInput.action as string;
+            const pkg = packageInput.package as string | undefined;
+            const version = packageInput.version as string | undefined;
+            const environment = packageInput.environment as string | undefined;
+
+            console.log(`📦 Python package ${action}: ${pkg || 'all packages'} in ${environment || 'default'}`);
+
+            try {
+              const result = await pythonPackageManage(sessionId as string, {
+                action: action as any,
+                package: pkg,
+                version,
+                environment,
+              });
+
+              let outputText = '';
+              if (result.success) {
+                outputText = `✅ Package ${action} successful`;
+                if (result.packages) {
+                  outputText += `\n\n**Installed Packages:**\n${result.packages.map(p => `- ${p.name} (${p.version})`).join('\n')}`;
+                }
+                if (result.requirements) {
+                  outputText += `\n\n**Requirements.txt:**\n\`\`\`\n${result.requirements}\n\`\`\``;
+                }
+              } else {
+                outputText = `❌ Package ${action} failed\n\n**Error:** ${result.error}`;
+              }
+
+              return {
+                tool_result: {
+                  type: 'tool_result',
+                  tool_use_id: toolUseID,
+                  content: [{
+                    type: 'text',
+                    text: outputText,
+                  }],
+                  is_error: !result.success,
+                },
+              };
+            } catch (error) {
+              return {
+                tool_result: {
+                  type: 'tool_result',
+                  tool_use_id: toolUseID,
+                  content: [{
+                    type: 'text',
+                    text: `❌ Package management error: ${error instanceof Error ? error.message : String(error)}`,
+                  }],
+                  is_error: true,
+                },
+              };
+            }
+          }
+
+          if (tool_name === 'PythonEnvironmentManage') {
+            const envInput = tool_input as Record<string, unknown>;
+            const action = envInput.action as string;
+            const name = envInput.name as string | undefined;
+            const pythonVersion = envInput.pythonVersion as string | undefined;
+            const type = envInput.type as string | undefined;
+            const packages = envInput.packages as string[] | undefined;
+
+            console.log(`🏗️ Python environment ${action}: ${name || 'list environments'}`);
+
+            try {
+              const result = await pythonEnvironmentManage(sessionId as string, {
+                action: action as any,
+                name,
+                pythonVersion,
+                type: type as any,
+                packages,
+              });
+
+              let outputText = '';
+              if (result.success) {
+                if (action === 'create') {
+                  outputText = `✅ Environment '${name}' created successfully${pythonVersion ? ` with Python ${pythonVersion}` : ''}`;
+                } else if (action === 'list' && result.environments) {
+                  outputText = `**Available Python Environments:**\n\n${result.environments.map(env => `- **${env.name}** (${env.version}) - ${env.type} ${env.isActive ? '(active)' : ''} - ${env.packageCount} packages`).join('\n')}`;
+                } else if (action === 'activate') {
+                  outputText = `✅ Environment '${name}' activated successfully`;
+                } else if (action === 'delete') {
+                  outputText = `✅ Environment '${name}' deleted successfully`;
+                }
+              } else {
+                outputText = `❌ Environment ${action} failed\n\n**Error:** ${result.error}`;
+              }
+
+              return {
+                tool_result: {
+                  type: 'tool_result',
+                  tool_use_id: toolUseID,
+                  content: [{
+                    type: 'text',
+                    text: outputText,
+                  }],
+                  is_error: !result.success,
+                },
+              };
+            } catch (error) {
+              return {
+                tool_result: {
+                  type: 'tool_result',
+                  tool_use_id: toolUseID,
+                  content: [{
+                    type: 'text',
+                    text: `❌ Environment management error: ${error instanceof Error ? error.message : String(error)}`,
+                  }],
+                  is_error: true,
+                },
+              };
+            }
+          }
+
+          // Handle WorkflowExecute tool
+          if (tool_name === 'WorkflowExecute') {
+            const workflowInput = tool_input as Record<string, unknown>;
+            const workflowId = workflowInput.workflowId as string;
+            const triggerContext = workflowInput.triggerContext as Record<string, any> | undefined;
+            const variables = workflowInput.variables as Record<string, any> | undefined;
+
+            console.log(`🔄 Executing workflow: ${workflowId}`);
+
+            try {
+              const workflowEngine = getWorkflowEngine(sessionId as string);
+              const result = await workflowEngine.executeWorkflow(workflowId, triggerContext, variables);
+
+              return {
+                tool_result: {
+                  type: 'tool_result',
+                  tool_use_id: toolUseID,
+                  content: [{
+                    type: 'text',
+                    text: result.success
+                      ? `✅ Workflow execution successful (took ${result.duration}ms)\n\n**Steps Completed:** ${result.stepsCompleted}/${result.stepsTotal}\n\n**Output:**\n${JSON.stringify(result.output, null, 2)}`
+                      : `❌ Workflow execution failed\n\n**Error:** ${result.error}\n\n**Steps Completed:** ${result.stepsCompleted}/${result.stepsTotal}`,
+                  }],
+                  is_error: !result.success,
+                },
+              };
+            } catch (error) {
+              return {
+                tool_result: {
+                  type: 'tool_result',
+                  tool_use_id: toolUseID,
+                  content: [{
+                    type: 'text',
+                    text: `❌ Workflow execution error: ${error instanceof Error ? error.message : String(error)}`,
+                  }],
+                  is_error: true,
+                },
+              };
+            }
+          }
+
+          // Handle WorkflowSuggest tool
+          if (tool_name === 'WorkflowSuggest') {
+            const suggestInput = tool_input as Record<string, unknown>;
+            const context = suggestInput.context as Record<string, any> | undefined;
+
+            console.log(`💡 Generating workflow suggestions`);
+
+            try {
+              const workflowEngine = getWorkflowEngine(sessionId as string);
+              const suggestions = await workflowEngine.suggestWorkflows(context || {});
+
+              const suggestionText = suggestions.length > 0
+                ? `🤖 **AI Workflow Suggestions:**\n\n${suggestions.map((s, index) =>
+                    `${index + 1}. **${s.workflow.name}** (${(s.score * 100).toFixed(0)}% match)\n   ${s.reason}\n   ${s.workflow.description}\n   Tags: ${s.workflow.tags.join(', ')}`
+                  ).join('\n\n')}`
+                : 'No workflow suggestions available for current context.';
+
+              return {
+                tool_result: {
+                  type: 'tool_result',
+                  tool_use_id: toolUseID,
+                  content: [{
+                    type: 'text',
+                    text: suggestionText,
+                  }],
+                  is_error: false,
+                },
+              };
+            } catch (error) {
+              return {
+                tool_result: {
+                  type: 'tool_result',
+                  tool_use_id: toolUseID,
+                  content: [{
+                    type: 'text',
+                    text: `❌ Workflow suggestion error: ${error instanceof Error ? error.message : String(error)}`,
+                  }],
+                  is_error: true,
+                },
+              };
+            }
+          }
 
           if (tool_name !== 'Bash') return {};
 
           const bashInput = tool_input as Record<string, unknown>;
-          console.log('🔧 Bash input run_in_background:', bashInput.run_in_background);
-
-          if (bashInput.run_in_background !== true) return {};
-
-          // This is a background Bash command - intercept it!
-          console.log('🎯 INTERCEPTING BACKGROUND BASH COMMAND!');
           const command = bashInput.command as string;
           const description = bashInput.description as string | undefined;
           const bashId = toolUseID || `bg-${Date.now()}`;
 
-          // Check if this specific command is already running for this session
-          const existingProcess = backgroundProcessManager.findExistingProcess(sessionId as string, command);
+          // Detect long-running commands (install, build, test)
+          const isInstallCommand = /\b(npm|bun|yarn|pnpm)\s+(install|i|add)\b/i.test(command);
+          const isBuildCommand = /\b(npm|bun|yarn|pnpm)\s+(run\s+)?(build|compile)\b/i.test(command);
+          const isTestCommand = /\b(npm|bun|yarn|pnpm)\s+(run\s+)?test\b/i.test(command);
+          const isLongRunningCommand = isInstallCommand || isBuildCommand || isTestCommand;
 
-          if (existingProcess) {
-            // Check if the process is actually still alive
+          // Handle long-running commands with monitored background execution
+          if (isLongRunningCommand && bashInput.run_in_background !== true) {
+            const commandType = isInstallCommand ? 'install' : isBuildCommand ? 'build' : 'test';
+
+            // Spawn background process
+            const { pid } = await backgroundProcessManager.spawn(command, workingDir, bashId, sessionId as string, description);
+
+            console.log(`📦 Running ${commandType} (PID ${pid}): ${command.slice(0, 50)}${command.length > 50 ? '...' : ''}`);
+
+            // Save long-running command to database immediately
+            const longRunningCommandBlock = {
+              type: 'long_running_command',
+              bashId,
+              command,
+              commandType,
+              output: '',
+              status: 'running',
+            };
+            const dbMessage = sessionDb.addMessage(
+              sessionId as string,
+              'assistant',
+              JSON.stringify([longRunningCommandBlock])
+            );
+
+            // Notify client that long-running command started
+            ws.send(JSON.stringify({
+              type: 'long_running_command_started',
+              bashId,
+              command,
+              commandType,
+              description,
+              startedAt: Date.now(),
+            }));
+
+            let accumulatedOutput = '';
+
             try {
-              // kill -0 doesn't kill the process, just checks if it exists
-              process.kill(existingProcess.pid, 0);
-              // Process is alive, block duplicate
-              console.log(`⚠️  This command is already running for this session, skipping spawn: ${command}`);
+              // Wait for completion with output streaming
+              const result = await backgroundProcessManager.waitForCompletion(bashId, {
+                timeout: 600000, // 10 minutes
+                hangTimeout: 120000, // 2 minutes no output = hang
+                onOutput: (chunk) => {
+                  // Accumulate output
+                  accumulatedOutput += chunk;
+
+                  // Update database with accumulated output
+                  sessionDb.updateMessage(
+                    dbMessage.id,
+                    JSON.stringify([{
+                      ...longRunningCommandBlock,
+                      output: accumulatedOutput,
+                    }])
+                  );
+
+                  // Stream output to client
+                  ws.send(JSON.stringify({
+                    type: 'command_output_chunk',
+                    bashId,
+                    output: chunk,
+                  }));
+                },
+              });
+
+              // Log and notify completion
+              console.log(`✅ Command completed (exit ${result.exitCode}): ${command.slice(0, 50)}${command.length > 50 ? '...' : ''}`);
+
+              // Update database with final status
+              sessionDb.updateMessage(
+                dbMessage.id,
+                JSON.stringify([{
+                  ...longRunningCommandBlock,
+                  output: accumulatedOutput || result.output,
+                  status: 'completed',
+                }])
+              );
+
+              ws.send(JSON.stringify({
+                type: 'long_running_command_completed',
+                bashId,
+                exitCode: result.exitCode,
+              }));
+
+
+              // Return the actual output to Claude
               return {
                 decision: 'approve' as const,
                 updatedInput: {
-                  command: `echo "✓ Command already running in background (PID ${existingProcess.pid}, started at ${new Date(existingProcess.startedAt).toLocaleTimeString()})"`,
+                  command: `cat <<'EOF'\n${result.output}\nEOF`,
                   description,
                 },
               };
-            } catch {
-              // Process is dead, remove from registry and allow respawn
-              console.log(`🧹 Process ${existingProcess.pid} is dead, removing from registry and allowing respawn`);
-              backgroundProcessManager.delete(existingProcess.bashId);
+            } catch (error) {
+              console.error(`❌ Long-running command failed:`, error);
+
+              // Update database with error status
+              sessionDb.updateMessage(
+                dbMessage.id,
+                JSON.stringify([{
+                  ...longRunningCommandBlock,
+                  output: accumulatedOutput || (error instanceof Error ? error.message : String(error)),
+                  status: 'failed',
+                }])
+              );
+
+              // Notify error
+              ws.send(JSON.stringify({
+                type: 'long_running_command_failed',
+                bashId,
+                error: error instanceof Error ? error.message : String(error),
+              }));
+
+              // Return error to Claude
+              return {
+                decision: 'approve' as const,
+                updatedInput: {
+                  command: `echo "Error: ${error instanceof Error ? error.message : String(error)}" >&2 && exit 1`,
+                  description,
+                },
+              };
             }
           }
 
-          // Spawn the process ourselves
-          const { pid } = await backgroundProcessManager.spawn(command, workingDir, bashId, sessionId as string, description);
+          // Handle regular background commands (e.g., dev servers)
+          if (bashInput.run_in_background === true) {
 
-          // Notify the client
-          ws.send(JSON.stringify({
-            type: 'background_process_started',
-            bashId,
-            command,
-            description,
-            startedAt: Date.now(),
-          }));
+            // Check if this specific command is already running for this session
+            const existingProcess = backgroundProcessManager.findExistingProcess(sessionId as string, command);
 
-          console.log(`✅ Background process spawned (PID ${pid}), replacing command with success echo`);
+            if (existingProcess) {
+              // Check if the process is actually still alive
+              try {
+                // kill -0 doesn't kill the process, just checks if it exists
+                process.kill(existingProcess.pid, 0);
+                // Process is alive, block duplicate
+                return {
+                  decision: 'approve' as const,
+                  updatedInput: {
+                    command: `echo "✓ Command already running in background (PID ${existingProcess.pid}, started at ${new Date(existingProcess.startedAt).toLocaleTimeString()})"`,
+                    description,
+                  },
+                };
+              } catch {
+                // Process is dead, remove from registry and allow respawn
+                backgroundProcessManager.delete(existingProcess.bashId);
+              }
+            }
 
-          // Replace the command with an echo so the SDK gets a successful result
-          // This prevents the agent from retrying
-          return {
-            decision: 'approve' as const,
-            updatedInput: {
-              command: `echo "✓ Background server started (PID ${pid})"`,
+            // Spawn the process ourselves
+            const { pid } = await backgroundProcessManager.spawn(command, workingDir, bashId, sessionId as string, description);
+
+            console.log(`🚀 Background process spawned (PID ${pid}): ${command.slice(0, 50)}${command.length > 50 ? '...' : ''}`);
+
+            // Notify the client
+            ws.send(JSON.stringify({
+              type: 'background_process_started',
+              bashId,
+              command,
               description,
-            },
-          };
+              startedAt: Date.now(),
+            }));
+
+            // Replace the command with an echo so the SDK gets a successful result
+            // This prevents the agent from retrying
+            return {
+              decision: 'approve' as const,
+              updatedInput: {
+                command: `echo "✓ Background server started (PID ${pid})"`,
+                description,
+              },
+            };
+          }
+
+          // Not a special command, let it pass through
+          return {};
         }],
       }],
     };
@@ -597,60 +925,25 @@ Run bash commands with the understanding that this is your current working direc
         const abortController = sessionStreamManager.getAbortController(sessionId as string);
         if (!abortController) {
           console.error('❌ No AbortController found for session:', sessionId);
-
-          throw new InternalError(
-            'Session initialization error: AbortController not found',
-            new Error('AbortController missing'),
-            { sessionId: sessionId.toString().substring(0, 8) },
-            sessionId as string
-          );
+          ws.send(JSON.stringify({
+            type: 'error',
+            message: 'Session initialization error'
+          }));
+          return;
         }
-
-        console.log(`🎮 AbortController attached to session: ${sessionId.toString().substring(0, 8)}`);
 
         // Add AbortController to query options
         queryOptions.abortController = abortController;
 
         // Spawn SDK with AsyncIterable stream (resume option loads history from transcript files)
-        console.log(`🔵 [DIAG] About to spawn SDK subprocess for session ${sessionId.toString().substring(0, 8)}`);
-        console.log(`🔵 [DIAG] Query options: model=${queryOptions.model}, cwd=${queryOptions.cwd}, resume=${!!queryOptions.resume}`);
-
-        // Langfuse: Create trace for observability
-        const langfuseTrace = isLangfuseEnabled() ? createTrace(
-          sessionId as string,
-          undefined, // userId - add if available
-          {
-            model: queryOptions.model as string,
-            permissionMode: session.permission_mode,
-            mode: session.mode,
-          }
-        ) : null;
-
-        // Langfuse: Create generation span
-        const langfuseGeneration = langfuseTrace ? createGeneration(langfuseTrace, {
-          name: 'claude-agent-sdk-query',
-          model: queryOptions.model as string,
-          input: {
-            message: promptText,
-            systemPrompt: (queryOptions.systemPrompt as string)?.substring(0, 500) + '...' // Truncate for readability
-          },
-          modelParameters: {
-            permissionMode: queryOptions.permissionMode,
-            mode: session.mode,
-            hasResume: !!queryOptions.resume,
-          }
-        }) : null;
-
-        if (langfuseTrace) {
-          console.log('📊 Langfuse trace created for session');
-        }
-
+        console.log(`🔄 [SDK] Spawning Claude SDK subprocess for session ${sessionId.toString().substring(0, 8)}...`);
+        const spawnStart = Date.now();
         const result = query({
           prompt: messageStream,
           options: queryOptions
         });
-
-        console.log(`🔵 [DIAG] SDK query() returned, registering with session manager`);
+        const spawnTime = Date.now() - spawnStart;
+        console.log(`✅ [SDK] Subprocess spawned in ${spawnTime}ms for session ${sessionId.toString().substring(0, 8)}`);
 
         // Register query and store for mid-stream control
         sessionStreamManager.registerQuery(sessionId as string, result);
@@ -662,12 +955,10 @@ Run bash commands with the understanding that this is your current working direc
         // Enqueue current message (SDK loads history via resume option)
         sessionStreamManager.sendMessage(sessionId as string, promptText);
 
-        console.log(`🚀 SDK subprocess spawned with AsyncIterable stream`);
-
         // If session is in plan mode, immediately switch after spawn
         // (SDK always spawns with bypassPermissions to allow bidirectional mode switching)
         if (session.permission_mode === 'plan') {
-          console.log('🔄 Session in plan mode, switching SDK to plan mode');
+          console.log('🔄 Switching to plan mode');
           await result.setPermissionMode('plan');
         }
 
@@ -684,56 +975,56 @@ Run bash commands with the understanding that this is your current working direc
           let totalCharCount = 0;
           let currentMessageId: string | null = null; // Track DB message ID for incremental saves
           let exitPlanModeSentThisTurn = false; // Prevent duplicate plan modals
+          let toolUseCount = 0; // Track number of tools executed (for hang detection logging)
 
-          // Heartbeat logging every 30 seconds to detect hangs
+          // Heartbeat every 30 seconds to prevent WebSocket idle timeout
           const heartbeatInterval = setInterval(() => {
             const elapsed = timeoutController.getElapsedSeconds();
-            console.log(`💓 [HEARTBEAT] Session ${sessionId.toString().substring(0, 8)} alive: ${elapsed}s elapsed, messages processed: ${totalCharCount} chars`);
+
+            // Send keepalive through WebSocket to prevent Bun's idleTimeout from closing the connection
+            sessionStreamManager.safeSend(
+              sessionId as string,
+              JSON.stringify({
+                type: 'keepalive',
+                elapsedSeconds: elapsed,
+                sessionId: sessionId,
+              })
+            );
           }, 30000);
 
           try {
-            console.log(`🔵 [DIAG] Starting message processing loop for session ${sessionId.toString().substring(0, 8)}`);
-
             // Stream the response - query() is an AsyncGenerator
             // Loop runs indefinitely, processing message after message
             for await (const message of result) {
               // Only check timeout (don't reset yet - only reset on meaningful progress)
               timeoutController.checkTimeout();
 
-              // Log every message type for diagnostics
-              const messageType = message.type;
-              const messageSubtype = (message as { subtype?: string }).subtype;
-              console.log(`🔵 [DIAG] Message received: type=${messageType}, subtype=${messageSubtype || 'none'}`);
-
-              // Log full content of type=user messages for debugging
-              if (message.type === 'user') {
-                const userMessage = message as Record<string, unknown>;
-                console.log(`🔵 [DIAG] type=user details:`, {
-                  isSynthetic: userMessage.isSynthetic,
-                  isReplay: userMessage.isReplay,
-                  parent_tool_use_id: userMessage.parent_tool_use_id,
-                  message: userMessage.message ? JSON.stringify(userMessage.message).slice(0, 200) : null,
-                });
-              }
-
               // Capture SDK's internal session ID from first system message
               if (message.type === 'system' && (message as { subtype?: string }).subtype === 'init') {
                 const sdkSessionId = (message as { session_id?: string }).session_id;
                 if (sdkSessionId && sdkSessionId !== sessionId) {
-                  console.log(`🔑 Captured SDK session ID: ${sdkSessionId} (DB: ${sessionId.toString().substring(0, 8)})`);
                   sessionDb.updateSdkSessionId(sessionId as string, sdkSessionId);
                 }
                 continue; // Skip further processing for system messages
               }
 
               // Detect compact boundary - conversation was compacted
-              if (message.type === 'system' && (message as { subtype?: string }).subtype === 'compact_boundary') {
-                const compactMessage = message as { compact_metadata?: { trigger: 'manual' | 'auto'; pre_tokens: number } };
-                const trigger = compactMessage.compact_metadata?.trigger || 'manual';
-                const preTokens = compactMessage.compact_metadata?.pre_tokens || 0;
+              if (isCompactBoundaryMessage(message)) {
+                const trigger = message.compact_metadata.trigger;
+                const preTokens = message.compact_metadata.pre_tokens;
 
                 if (trigger === 'auto') {
-                  console.log(`🗜️ AUTO-COMPACT triggered - context reached limit (${preTokens} tokens before compact)`);
+                  console.log(`🗜️ Auto-compact: ${preTokens.toLocaleString()} tokens → summarized`);
+
+                  // Save divider message to database for auto-compact persistence
+                  sessionDb.addMessage(
+                    sessionId as string,
+                    'assistant',
+                    JSON.stringify([{
+                      type: 'text',
+                      text: `--- Auto-compact: Context reached limit (${preTokens.toLocaleString()} tokens). History was automatically summarized ---`
+                    }])
+                  );
 
                   // For auto-compact: send notification that compaction is starting (no divider)
                   // Claude will continue responding after compaction completes
@@ -747,14 +1038,24 @@ Run bash commands with the understanding that this is your current working direc
                     })
                   );
                 } else {
-                  console.log(`🗜️ Manual /compact completed - conversation history was summarized (${preTokens} tokens before compact)`);
+                  console.log(`🗜️ Manual compact: ${preTokens.toLocaleString()} tokens → summarized`);
 
-                  // For manual compact: send divider to show in chat
+                  // Save divider message to database for persistence
+                  sessionDb.addMessage(
+                    sessionId as string,
+                    'assistant',
+                    JSON.stringify([{
+                      type: 'text',
+                      text: `--- History compacted. Previous messages were summarized to reduce token usage (${preTokens.toLocaleString()} tokens before compact) ---`
+                    }])
+                  );
+
+                  // For manual compact: send completion message to replace loading state
                   sessionStreamManager.safeSend(
                     sessionId as string,
                     JSON.stringify({
-                      type: 'assistant_message',
-                      content: '--- History compacted. Previous messages were summarized to reduce token usage ---',
+                      type: 'compact_complete',
+                      preTokens: preTokens,
                       sessionId: sessionId,
                     })
                   );
@@ -781,7 +1082,12 @@ Run bash commands with the understanding that this is your current working direc
 
                 // Extract usage data from result message
                 const resultMessage = message as {
-                  usage?: { input_tokens?: number; output_tokens?: number };
+                  usage?: {
+                    input_tokens?: number;
+                    output_tokens?: number;
+                    cache_creation_input_tokens?: number;
+                    cache_read_input_tokens?: number;
+                  };
                   modelUsage?: Record<string, {
                     inputTokens: number;
                     outputTokens: number;
@@ -791,38 +1097,76 @@ Run bash commands with the understanding that this is your current working direc
 
                 // Send context usage to client if available
                 if (resultMessage.modelUsage) {
-                  // Get usage for the current model (usually first entry)
-                  const modelNames = Object.keys(resultMessage.modelUsage);
-                  if (modelNames.length > 0) {
-                    const usage = resultMessage.modelUsage[modelNames[0]];
-                    const contextPercentage = Math.round((usage.inputTokens / usage.contextWindow) * 100);
+                  // Get usage for the current model (not first alphabetically!)
+                  const usage = resultMessage.modelUsage[apiModelId] as {
+                    inputTokens: number;
+                    outputTokens: number;
+                    contextWindow: number;
+                    cacheReadInputTokens?: number;
+                    cacheCreationInputTokens?: number;
+                  };
+                  if (usage) {
+                    // inputTokens already includes the full context size
+                    // cacheReadInputTokens and cacheCreationInputTokens are subsets for billing breakdown
+                    const totalInputTokens = usage.inputTokens;
 
-                    console.log(`📊 Context usage: ${usage.inputTokens.toLocaleString()}/${usage.contextWindow.toLocaleString()} tokens (${contextPercentage}%)`);
+                    const contextPercentage = Number(((totalInputTokens / usage.contextWindow) * 100).toFixed(1));
+
+                    console.log(`📊 Context usage: ${totalInputTokens.toLocaleString()}/${usage.contextWindow.toLocaleString()} tokens (${contextPercentage}%) [input: ${usage.inputTokens}, cache_read: ${usage.cacheReadInputTokens || 0}, cache_creation: ${usage.cacheCreationInputTokens || 0}]`);
+
+                    // Save context usage to database for persistence
+                    sessionDb.updateContextUsage(
+                      sessionId as string,
+                      totalInputTokens,
+                      usage.contextWindow,
+                      contextPercentage
+                    );
 
                     sessionStreamManager.safeSend(
                       sessionId as string,
                       JSON.stringify({
                         type: 'context_usage',
-                        inputTokens: usage.inputTokens,
+                        inputTokens: totalInputTokens,
                         outputTokens: usage.outputTokens,
                         contextWindow: usage.contextWindow,
                         contextPercentage: contextPercentage,
                         sessionId: sessionId,
                       })
                     );
-
-                    // Langfuse: End generation with token usage
-                    if (langfuseGeneration) {
-                      langfuseGeneration.end({
-                        output: currentTextResponse || currentMessageContent,
-                        usage: {
-                          input: usage.inputTokens,
-                          output: usage.outputTokens,
-                        },
-                      });
-                      console.log('📊 Langfuse generation ended with usage data');
-                    }
+                  } else {
+                    console.warn(`⚠️  Result message has modelUsage but no model entries`);
                   }
+                } else if (resultMessage.usage?.input_tokens) {
+                  // Fallback: Use basic usage field when modelUsage is missing
+                  // This happens for tool-only turns, permission requests, etc.
+                  const inputTokens = resultMessage.usage.input_tokens;
+                  const outputTokens = resultMessage.usage.output_tokens || 0;
+                  const DEFAULT_CONTEXT_WINDOW = 200000; // Standard for most models
+                  const contextPercentage = Number(((inputTokens / DEFAULT_CONTEXT_WINDOW) * 100).toFixed(1));
+
+                  console.log(`📊 Context usage (estimated): ${inputTokens.toLocaleString()}/${DEFAULT_CONTEXT_WINDOW.toLocaleString()} tokens (${contextPercentage}%)`);
+
+                  // Save estimated context usage to database
+                  sessionDb.updateContextUsage(
+                    sessionId as string,
+                    inputTokens,
+                    DEFAULT_CONTEXT_WINDOW,
+                    contextPercentage
+                  );
+
+                  sessionStreamManager.safeSend(
+                    sessionId as string,
+                    JSON.stringify({
+                      type: 'context_usage',
+                      inputTokens: inputTokens,
+                      outputTokens: outputTokens,
+                      contextWindow: DEFAULT_CONTEXT_WINDOW,
+                      contextPercentage: contextPercentage,
+                      sessionId: sessionId,
+                    })
+                  );
+                } else {
+                  console.warn(`⚠️  Result message missing both modelUsage and usage fields - context percentage not updated`);
                 }
 
                 // Send completion signal (safe send checks WebSocket readyState)
@@ -840,6 +1184,7 @@ Run bash commands with the understanding that this is your current working direc
                 totalCharCount = 0;
                 currentMessageId = null; // Reset message ID for next turn
                 exitPlanModeSentThisTurn = false; // Reset plan mode flag for next turn
+                toolUseCount = 0; // Reset tool counter for next turn
 
                 // Continue loop - wait for next message from stream
                 continue;
@@ -939,6 +1284,10 @@ Run bash commands with the understanding that this is your current working direc
             );
           }
         }
+              } else if (message.type === 'user') {
+                // Tool result messages - these are responses from tool executions (including spawned agents)
+                // These messages are tool results - SDK processes them internally
+                continue; // Continue to next message
               } else if (message.type === 'assistant') {
                 // Capture full message content structure for database storage
                 const content = message.message.content;
@@ -963,17 +1312,17 @@ Run bash commands with the understanding that this is your current working direc
           // Handle tool use from complete assistant message
           for (const block of content) {
             if (block.type === 'tool_use') {
-              console.log(`🔵 [DIAG] Tool use detected: ${block.name} (id: ${block.id})`);
+              // IMPORTANT: Reset timeout on tool use to prevent timeouts during long tool executions
+              // GLM models may not output text for several minutes during tool/agent execution
+              timeoutController.reset();
 
-              // Detect Task tool (sub-agent spawning)
-              if (block.name === 'Task') {
-                const taskInput = block.input as Record<string, unknown>;
-                console.log(`🟢 [SUB-AGENT] Task tool spawning agent: ${taskInput.subagent_type || 'unknown'}, prompt: ${String(taskInput.prompt).substring(0, 100)}...`);
-              }
+              // Hang detection logging (especially useful for GLM debugging)
+              toolUseCount++;
+              const toolTimestamp = new Date().toISOString();
+              console.log(`🔧 [${toolTimestamp}] Tool #${toolUseCount}: ${block.name}`);
 
               // Check if this is ExitPlanMode tool (deduplicate - only send first one per turn)
               if (block.name === 'ExitPlanMode' && !exitPlanModeSentThisTurn) {
-                console.log('🛡️ ExitPlanMode detected, sending plan to client');
                 exitPlanModeSentThisTurn = true; // Mark as sent
                 sessionStreamManager.safeSend(
                   sessionId as string,
@@ -987,7 +1336,6 @@ Run bash commands with the understanding that this is your current working direc
                 // The exit_plan_mode event already triggers the modal, no need for chat block
                 continue;
               } else if (block.name === 'ExitPlanMode') {
-                console.log('⚠️ Duplicate ExitPlanMode detected, skipping (already sent this turn)');
                 continue; // Skip duplicate ExitPlanMode
               }
 
@@ -1062,54 +1410,38 @@ Run bash commands with the understanding that this is your current working direc
               })
             );
           } finally {
-            console.log(`🏁 Background loop ended for session ${sessionId?.toString().substring(0, 8)}`);
             clearInterval(heartbeatInterval);
-            console.log(`🔵 [DIAG] Heartbeat interval cleared`);
           }
         })(); // Execute async IIFE immediately (non-blocking)
 
-        // Success! SDK spawned and background loop started
-        console.log(`✅ Request handling complete - background loop running`);
         break; // Exit retry loop
 
       } catch (error) {
         _lastError = error;
+        console.error(`❌ Query attempt ${attemptNumber}/${MAX_RETRIES} failed:`, error);
 
         // Parse error with stderr context for better error messages
         const parsedError = parseApiError(error, stderrOutput);
-
-        // Structured error logging with full context
-        logError(error, {
-          attemptNumber,
-          maxRetries: MAX_RETRIES,
-          sessionId: sessionId.toString().substring(0, 8),
-          parsedErrorType: parsedError.type,
+        console.log('📊 Parsed error:', {
+          type: parsedError.type,
+          message: parsedError.message,
           isRetryable: parsedError.isRetryable,
           requestId: parsedError.requestId,
-          stderrContext: parsedError.stderrContext,
+          stderrContext: parsedError.stderrContext ? parsedError.stderrContext.slice(0, 100) + '...' : undefined,
         });
-
-        // Wrap in SdkError with proper classification
-        const sdkError = new SdkError(
-          getUserFriendlyMessage(parsedError),
-          error,
-          sessionId as string,
-          parsedError.isRetryable
-        );
-
-        // Add parsed error details to context
-        sdkError.context.parsedErrorType = parsedError.type;
-        sdkError.context.apiRequestId = parsedError.requestId;
-        sdkError.context.stderrContext = parsedError.stderrContext;
-        sdkError.context.attemptNumber = attemptNumber;
-        sdkError.context.maxRetries = MAX_RETRIES;
 
         // Check if error is retryable
         if (!parsedError.isRetryable) {
           console.error('❌ Non-retryable error, aborting:', parsedError.type);
 
-          // Send structured error to client
-          sendError(ws, sdkError, sessionId as string, parsedError.requestId);
+          // Send error to client with specific error type
+          ws.send(JSON.stringify({
+            type: 'error',
+            errorType: parsedError.type,
+            message: getUserFriendlyMessage(parsedError),
+            requestId: parsedError.requestId,
+            sessionId: sessionId,
+          }));
 
           // Clean up
           timeoutController.cancel();
@@ -1120,23 +1452,32 @@ Run bash commands with the understanding that this is your current working direc
         if (attemptNumber >= MAX_RETRIES) {
           console.error('❌ Max retries reached, giving up');
 
-          // Send final structured error to client
-          sendError(ws, sdkError, sessionId as string, parsedError.requestId);
+          // Send final error to client
+          ws.send(JSON.stringify({
+            type: 'error',
+            errorType: parsedError.type,
+            message: getUserFriendlyMessage(parsedError),
+            requestId: parsedError.requestId,
+            sessionId: sessionId,
+          }));
 
           // Clean up
           timeoutController.cancel();
           break;
         }
 
-        // Calculate retry delay with exponential backoff
-        let delayMs = ErrorRecovery.getRetryDelay(attemptNumber, INITIAL_DELAY_MS, 16000);
+        // Calculate retry delay
+        let delayMs = INITIAL_DELAY_MS * Math.pow(BACKOFF_MULTIPLIER, attemptNumber - 1);
 
         // Respect rate limit retry-after
         if (parsedError.type === 'rate_limit_error' && parsedError.retryAfterSeconds) {
           delayMs = parsedError.retryAfterSeconds * 1000;
         }
 
-        // Notify client of retry with structured message
+        // Cap at 16 seconds
+        delayMs = Math.min(delayMs, 16000);
+
+        // Notify client of retry
         ws.send(JSON.stringify({
           type: 'retry_attempt',
           attempt: attemptNumber,
@@ -1145,7 +1486,6 @@ Run bash commands with the understanding that this is your current working direc
           errorType: parsedError.type,
           message: `Retrying... (attempt ${attemptNumber}/${MAX_RETRIES})`,
           sessionId: sessionId,
-          requestId: parsedError.requestId,
         }));
 
         // Wait before retrying
@@ -1155,21 +1495,16 @@ Run bash commands with the understanding that this is your current working direc
     }
 
   } catch (error) {
-    // This catch is for errors outside the retry loop (e.g., session validation, early failures)
-    // These are already wrapped in WebSocketError types by the validation logic above
-    if (error instanceof WebSocketError) {
-      // Already properly typed, just send it
-      sendError(ws, error, sessionId as string);
-    } else {
-      // Unexpected error - wrap it
-      const wrappedError = new InternalError(
-        'Unexpected error in chat message handler',
-        error,
-        { phase: 'pre_sdk_initialization' },
-        sessionId as string
-      );
-      sendError(ws, wrappedError, sessionId as string);
-    }
+    // This catch is for errors outside the retry loop (e.g., session validation)
+    console.error('WebSocket handler error:', error);
+    // No stderr context available here since this is before SDK initialization
+    const parsedError = parseApiError(error);
+    ws.send(JSON.stringify({
+      type: 'error',
+      errorType: parsedError.type,
+      message: getUserFriendlyMessage(parsedError),
+      sessionId: sessionId,
+    }));
   }
 }
 
@@ -1181,11 +1516,8 @@ async function handleApprovePlan(
   const { sessionId } = data;
 
   if (!sessionId) {
-    throw new ValidationError(
-      'Missing sessionId for plan approval',
-      ['sessionId'],
-      data
-    );
+    ws.send(JSON.stringify({ type: 'error', error: 'Missing sessionId' }));
+    return;
   }
 
   const activeQuery = activeQueries.get(sessionId as string);
@@ -1216,12 +1548,11 @@ async function handleApprovePlan(
 
     console.log('✅ Plan approved, SDK switched to bypassPermissions');
   } catch (error) {
-    throw new SdkError(
-      'Failed to approve plan and switch permission mode',
-      error,
-      sessionId as string,
-      false
-    );
+    console.error('Failed to handle plan approval:', error);
+    ws.send(JSON.stringify({
+      type: 'error',
+      error: 'Failed to approve plan'
+    }));
   }
 }
 
@@ -1232,29 +1563,9 @@ async function handleSetPermissionMode(
 ): Promise<void> {
   const { sessionId, mode } = data;
 
-  // Validate required fields
-  const missingFields: string[] = [];
-  if (!sessionId) missingFields.push('sessionId');
-  if (!mode) missingFields.push('mode');
-
-  if (missingFields.length > 0) {
-    throw new ValidationError(
-      'Missing required fields for permission mode change',
-      missingFields,
-      data,
-      sessionId as string | undefined
-    );
-  }
-
-  // Validate mode value
-  const validModes = ['default', 'acceptEdits', 'bypassPermissions', 'plan'];
-  if (!validModes.includes(mode as string)) {
-    throw new ValidationError(
-      `Invalid permission mode: ${mode}`,
-      [],
-      { mode, validModes },
-      sessionId as string
-    );
+  if (!sessionId || !mode) {
+    ws.send(JSON.stringify({ type: 'error', error: 'Missing sessionId or mode' }));
+    return;
   }
 
   const activeQuery = activeQueries.get(sessionId as string);
@@ -1274,12 +1585,11 @@ async function handleSetPermissionMode(
       mode
     }));
   } catch (error) {
-    throw new SdkError(
-      `Failed to update permission mode to '${mode}'`,
-      error,
-      sessionId as string,
-      false
-    );
+    console.error('Failed to update permission mode:', error);
+    ws.send(JSON.stringify({
+      type: 'error',
+      error: 'Failed to update permission mode'
+    }));
   }
 }
 
@@ -1287,15 +1597,11 @@ async function handleKillBackgroundProcess(
   ws: ServerWebSocket<ChatWebSocketData>,
   data: Record<string, unknown>
 ): Promise<void> {
-  const { bashId, sessionId } = data;
+  const { bashId } = data;
 
   if (!bashId) {
-    throw new ValidationError(
-      'Missing bashId for background process kill',
-      ['bashId'],
-      data,
-      sessionId as string | undefined
-    );
+    ws.send(JSON.stringify({ type: 'error', error: 'Missing bashId' }));
+    return;
   }
 
   try {
@@ -1309,24 +1615,17 @@ async function handleKillBackgroundProcess(
         bashId
       }));
     } else {
-      throw new ValidationError(
-        'Process not found',
-        [],
-        { bashId },
-        sessionId as string | undefined
-      );
+      ws.send(JSON.stringify({
+        type: 'error',
+        error: 'Process not found'
+      }));
     }
   } catch (error) {
-    if (error instanceof WebSocketError) {
-      throw error; // Re-throw already typed errors
-    }
-
-    throw new InternalError(
-      'Failed to kill background process',
-      error,
-      { bashId },
-      sessionId as string | undefined
-    );
+    console.error('Failed to kill background process:', error);
+    ws.send(JSON.stringify({
+      type: 'error',
+      error: error instanceof Error ? error.message : 'Failed to kill background process'
+    }));
   }
 }
 
@@ -1337,11 +1636,8 @@ async function handleStopGeneration(
   const { sessionId } = data;
 
   if (!sessionId) {
-    throw new ValidationError(
-      'Missing sessionId for stop generation',
-      ['sessionId'],
-      data
-    );
+    ws.send(JSON.stringify({ type: 'error', error: 'Missing sessionId' }));
+    return;
   }
 
   try {
@@ -1357,235 +1653,245 @@ async function handleStopGeneration(
       }));
     } else {
       console.warn(`⚠️ Failed to stop generation (session not found): ${sessionId.toString().substring(0, 8)}`);
-      throw new SessionError(sessionId as string, 'not_found');
+      ws.send(JSON.stringify({
+        type: 'error',
+        error: 'Session not found or already stopped'
+      }));
     }
   } catch (error) {
-    if (error instanceof WebSocketError) {
-      throw error; // Re-throw already typed errors
+    console.error('❌ Error stopping generation:', error);
+    ws.send(JSON.stringify({
+      type: 'error',
+      error: error instanceof Error ? error.message : 'Failed to stop generation'
+    }));
+  }
+}
+
+/**
+ * Handle AI-related WebSocket requests
+ */
+async function handleAIRequest(
+  ws: ServerWebSocket<ChatWebSocketData>,
+  data: Record<string, unknown>
+): Promise<void> {
+  const { sessionId, action, payload } = data;
+
+  if (!sessionId || !action) {
+    ws.send(JSON.stringify({ type: 'error', error: 'Missing sessionId or action' }));
+    return;
+  }
+
+  try {
+    const aiServices = getAIServices(sessionId as string);
+
+    switch (action) {
+      case 'generate_suggestions':
+        const suggestions = await aiServices.suggestions.generateSuggestions(payload as any);
+        ws.send(JSON.stringify({
+          type: 'ai_response',
+          action: 'suggestions_generated',
+          data: suggestions
+        }));
+        break;
+
+      case 'search_knowledge':
+        const results = await aiServices.knowledge.searchKnowledge(payload as any);
+        ws.send(JSON.stringify({
+          type: 'ai_response',
+          action: 'knowledge_results',
+          data: results
+        }));
+        break;
+
+      case 'track_habit':
+        const { habitId, value, notes } = payload as any;
+        await aiServices.habits.trackHabit(habitId, value, notes);
+        ws.send(JSON.stringify({
+          type: 'ai_response',
+          action: 'habit_tracked',
+          data: { success: true }
+        }));
+        break;
+
+      case 'get_learning_profile':
+        const profile = await aiServices.learning.getProfile();
+        ws.send(JSON.stringify({
+          type: 'ai_response',
+          action: 'learning_profile',
+          data: profile
+        }));
+        break;
+
+      default:
+        ws.send(JSON.stringify({
+          type: 'error',
+          error: `Unknown AI action: ${action}`
+        }));
     }
-
-    throw new InternalError(
-      'Failed to stop generation',
-      error,
-      { sessionId: sessionId.toString().substring(0, 8) },
-      sessionId as string
-    );
-  }
-}
-
-// AI Intelligence Hub Handlers
-
-async function handleAISuggestionRequest(
-  ws: ServerWebSocket<ChatWebSocketData>,
-  data: Record<string, unknown>
-): Promise<void> {
-  const { sessionId, context } = data;
-
-  if (!sessionId || typeof sessionId !== 'string') {
-    throw new ValidationError('Missing or invalid sessionId', ['sessionId'], data, sessionId as string);
-  }
-
-  try {
-    const aiServices = getAIServices(sessionId);
-    const suggestions = await aiServices.suggestions.generateSuggestions(context || {});
-
-    ws.send(JSON.stringify({
-      type: 'ai_suggestions',
-      sessionId,
-      suggestions
-    }));
   } catch (error) {
-    console.error('AI suggestion error:', error);
-    throw new InternalError(
-      'Failed to generate AI suggestions',
-      error,
-      { sessionId: sessionId.substring(0, 8) },
-      sessionId
-    );
-  }
-}
-
-async function handleAIKnowledgeSearch(
-  ws: ServerWebSocket<ChatWebSocketData>,
-  data: Record<string, unknown>
-): Promise<void> {
-  const { sessionId, query } = data;
-
-  if (!sessionId || typeof sessionId !== 'string') {
-    throw new ValidationError('Missing or invalid sessionId', ['sessionId'], data, sessionId as string);
-  }
-
-  try {
-    const aiServices = getAIServices(sessionId);
-    const results = await aiServices.knowledge.searchKnowledge(query || {});
-
+    console.error('AI request error:', error);
     ws.send(JSON.stringify({
-      type: 'ai_knowledge_results',
-      sessionId,
-      results
+      type: 'error',
+      error: error instanceof Error ? error.message : 'AI request failed'
     }));
-  } catch (error) {
-    console.error('AI knowledge search error:', error);
-    throw new InternalError(
-      'Failed to search knowledge base',
-      error,
-      { sessionId: sessionId.substring(0, 8) },
-      sessionId
-    );
   }
 }
 
-async function handleAIHabitTrack(
+/**
+ * Handle Python-related WebSocket requests
+ */
+async function handlePythonRequest(
   ws: ServerWebSocket<ChatWebSocketData>,
   data: Record<string, unknown>
 ): Promise<void> {
-  const { sessionId, habitId, value, notes, context } = data;
+  const { sessionId, action, payload } = data;
 
-  if (!sessionId || typeof sessionId !== 'string') {
-    throw new ValidationError('Missing or invalid sessionId', ['sessionId'], data, sessionId as string);
+  if (!sessionId || !action) {
+    ws.send(JSON.stringify({ type: 'error', error: 'Missing sessionId or action' }));
+    return;
   }
 
   try {
-    const aiServices = getAIServices(sessionId);
-    const tracked = await aiServices.habits.trackHabit(
-      habitId as string,
-      value as number,
-      notes as string | undefined,
-      context as any
-    );
+    const pythonManager = getPythonManager(sessionId as string);
 
-    ws.send(JSON.stringify({
-      type: 'ai_habit_tracked',
-      sessionId,
-      success: tracked
-    }));
-  } catch (error) {
-    console.error('AI habit tracking error:', error);
-    throw new InternalError(
-      'Failed to track habit',
-      error,
-      { sessionId: sessionId.substring(0, 8) },
-      sessionId
-    );
-  }
-}
+    switch (action) {
+      case 'list_environments':
+        const environments = pythonManager.getEnvironments();
+        ws.send(JSON.stringify({
+          type: 'python_response',
+          action: 'environments_list',
+          data: environments
+        }));
+        break;
 
-// Python Environment Handlers
+      case 'create_environment':
+        const { name, pythonVersion, type } = payload as any;
+        let envId: string;
+        if (type === 'conda') {
+          envId = await pythonManager.createCondaEnvironment(name, pythonVersion);
+        } else {
+          envId = await pythonManager.createVirtualEnvironment(name, pythonVersion);
+        }
+        ws.send(JSON.stringify({
+          type: 'python_response',
+          action: 'environment_created',
+          data: { envId }
+        }));
+        break;
 
-async function handlePythonEnvStatus(
-  ws: ServerWebSocket<ChatWebSocketData>,
-  data: Record<string, unknown>
-): Promise<void> {
-  const { sessionId } = data;
+      case 'execute_code':
+        const { code, envId: execEnvId, workingDir } = payload as any;
+        const result = await pythonManager.executePythonCode(code, execEnvId, workingDir);
+        ws.send(JSON.stringify({
+          type: 'python_response',
+          action: 'code_executed',
+          data: result
+        }));
+        break;
 
-  if (!sessionId || typeof sessionId !== 'string') {
-    throw new ValidationError('Missing or invalid sessionId', ['sessionId'], data, sessionId as string);
-  }
+      case 'install_package':
+        const { envId: targetEnv, packageName, version } = payload as any;
+        await pythonManager.installPackage(targetEnv, packageName, version);
+        ws.send(JSON.stringify({
+          type: 'python_response',
+          action: 'package_installed',
+          data: { success: true }
+        }));
+        break;
 
-  try {
-    const session = sessionDb.getSession(sessionId);
-    if (!session) {
-      throw new SessionError(sessionId, 'not_found');
+      default:
+        ws.send(JSON.stringify({
+          type: 'error',
+          error: `Unknown Python action: ${action}`
+        }));
     }
-
-    const { getPythonEnvironmentManager } = await import('../python');
-    const envManager = getPythonEnvironmentManager(sessionId, session.working_directory);
-    const status = await envManager.getEnvironmentStatus();
-
-    ws.send(JSON.stringify({
-      type: 'python_env_status',
-      sessionId,
-      status
-    }));
   } catch (error) {
-    console.error('Python env status error:', error);
-    throw new InternalError(
-      'Failed to get Python environment status',
-      error,
-      { sessionId: sessionId.substring(0, 8) },
-      sessionId
-    );
+    console.error('Python request error:', error);
+    ws.send(JSON.stringify({
+      type: 'error',
+      error: error instanceof Error ? error.message : 'Python request failed'
+    }));
   }
 }
 
-async function handlePythonPackageInstall(
+/**
+ * Handle Workflow-related WebSocket requests
+ */
+async function handleWorkflowRequest(
   ws: ServerWebSocket<ChatWebSocketData>,
   data: Record<string, unknown>
 ): Promise<void> {
-  const { sessionId, packages } = data;
+  const { sessionId, action, payload } = data;
 
-  if (!sessionId || typeof sessionId !== 'string') {
-    throw new ValidationError('Missing or invalid sessionId', ['sessionId'], data, sessionId as string);
-  }
-
-  if (!packages || !Array.isArray(packages)) {
-    throw new ValidationError('Missing or invalid packages array', ['packages'], data, sessionId);
+  if (!sessionId || !action) {
+    ws.send(JSON.stringify({ type: 'error', error: 'Missing sessionId or action' }));
+    return;
   }
 
   try {
-    const session = sessionDb.getSession(sessionId);
-    if (!session) {
-      throw new SessionError(sessionId, 'not_found');
+    const workflowEngine = getWorkflowEngine(sessionId as string);
+
+    switch (action) {
+      case 'list_workflows':
+        const workflows = await workflowEngine.listWorkflows();
+        ws.send(JSON.stringify({
+          type: 'workflow_response',
+          action: 'workflows_list',
+          data: workflows
+        }));
+        break;
+
+      case 'execute_workflow':
+        const { workflowId, input } = payload as any;
+        const executionId = await workflowEngine.executeWorkflow(workflowId, input);
+        ws.send(JSON.stringify({
+          type: 'workflow_response',
+          action: 'workflow_started',
+          data: { executionId }
+        }));
+        break;
+
+      case 'get_execution_status':
+        const { executionId: execId } = payload as any;
+        const execution = await workflowEngine.getExecution(execId);
+        ws.send(JSON.stringify({
+          type: 'workflow_response',
+          action: 'execution_status',
+          data: execution
+        }));
+        break;
+
+      case 'cancel_execution':
+        const { executionId: cancelId } = payload as any;
+        await workflowEngine.cancelExecution(cancelId);
+        ws.send(JSON.stringify({
+          type: 'workflow_response',
+          action: 'execution_cancelled',
+          data: { success: true }
+        }));
+        break;
+
+      case 'suggest_workflows':
+        const context = payload as any;
+        const suggestions = await workflowEngine.suggestWorkflows(context);
+        ws.send(JSON.stringify({
+          type: 'workflow_response',
+          action: 'workflow_suggestions',
+          data: suggestions
+        }));
+        break;
+
+      default:
+        ws.send(JSON.stringify({
+          type: 'error',
+          error: `Unknown workflow action: ${action}`
+        }));
     }
-
-    const { getPythonEnvironmentManager } = await import('../python');
-    const envManager = getPythonEnvironmentManager(sessionId, session.working_directory);
-    const result = await envManager.installPackages(packages as string[]);
-
-    ws.send(JSON.stringify({
-      type: 'python_package_installed',
-      sessionId,
-      success: result.success,
-      output: result.output
-    }));
   } catch (error) {
-    console.error('Python package install error:', error);
-    throw new InternalError(
-      'Failed to install Python packages',
-      error,
-      { sessionId: sessionId.substring(0, 8), packages },
-      sessionId
-    );
-  }
-}
-
-async function handlePythonScriptRun(
-  ws: ServerWebSocket<ChatWebSocketData>,
-  data: Record<string, unknown>
-): Promise<void> {
-  const { sessionId, scriptPath, args } = data;
-
-  if (!sessionId || typeof sessionId !== 'string') {
-    throw new ValidationError('Missing or invalid sessionId', ['sessionId'], data, sessionId as string);
-  }
-
-  if (!scriptPath || typeof scriptPath !== 'string') {
-    throw new ValidationError('Missing or invalid scriptPath', ['scriptPath'], data, sessionId);
-  }
-
-  try {
-    const session = sessionDb.getSession(sessionId);
-    if (!session) {
-      throw new SessionError(sessionId, 'not_found');
-    }
-
-    const { getPythonEnvironmentManager } = await import('../python');
-    const envManager = getPythonEnvironmentManager(sessionId, session.working_directory);
-    const result = await envManager.runScript(scriptPath as string, (args as string[]) || []);
-
+    console.error('Workflow request error:', error);
     ws.send(JSON.stringify({
-      type: 'python_script_result',
-      sessionId,
-      success: result.success,
-      output: result.output
+      type: 'error',
+      error: error instanceof Error ? error.message : 'Workflow request failed'
     }));
-  } catch (error) {
-    console.error('Python script run error:', error);
-    throw new InternalError(
-      'Failed to run Python script',
-      error,
-      { sessionId: sessionId.substring(0, 8), scriptPath },
-      sessionId
-    );
   }
 }

@@ -13,6 +13,7 @@
     "login": "bun run cli.ts --login",
     "logout": "bun run cli.ts --logout",
     "auth:status": "bun run cli.ts --status",
+    "verify": "./verify-location.sh",
     "test": "bun test",
     "test:watch": "bun test --watch",
     "lint": "eslint .",

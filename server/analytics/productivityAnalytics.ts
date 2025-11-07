@@ -723,3 +723,7 @@ export class ProductivityAnalytics {
     console.log(`Saving analytics data for session ${this.sessionId}`);
   }
 }
+
+// Export singleton instance for convenience (session-agnostic operations)
+// For session-specific operations, create new instances
+export const productivityAnalytics = new ProductivityAnalytics('default');

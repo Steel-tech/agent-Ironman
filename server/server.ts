@@ -2,7 +2,7 @@
  * Agent Ironman - Modern chat interface for Claude Agent SDK
  * Copyright (C) 2025 KenKai
  *
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: MIT
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -46,24 +46,33 @@ if (oauthFlag) {
 import { watch } from "fs";
 import { getDefaultWorkingDirectory, ensureDirectory } from "./directoryUtils";
 import { handleStaticFile } from "./staticFileServer";
-import { initializeStartup } from "./startup";
+import { initializeStartup, checkNodeAvailability } from "./startup";
 import { handleSessionRoutes } from "./routes/sessions";
 import { handleDirectoryRoutes } from "./routes/directory";
 import { handleUserConfigRoutes } from "./routes/userConfig";
 import { handleCommandRoutes } from "./routes/commands";
-import { handleWebSocketMessage } from "./websocket/messageHandlers";
 import { handleAIRoutes } from "./routes/ai";
 import { handlePythonRoutes } from "./routes/python";
+import { handleWorkflowRoutes } from "./routes/workflows";
+import { handlePydanticAIRoutes } from "./routes/pydantic-ai";
+import { handleWebSocketMessage } from "./websocket/messageHandlers";
+import { ProjectMemoryService } from "./memory/projectMemoryService";
+import { PythonEnvironmentManager } from "./python/pythonManager";
+import { WorkflowEngine } from "./workflows/workflowEngine";
+import { PydanticAIManager } from "./pydantic-ai/pydanticAIManager";
 import {
-  personalLearning,
-  predictiveSuggestions,
-  personalKnowledgeBase,
-  habitTracking
+  PersonalLearningEngine,
+  PredictiveSuggestions,
+  PersonalKnowledgeBase,
+  HabitTracking
 } from "./ai";
-import type { ServerWebSocket } from "bun";
+import type { ServerWebSocket, Server as ServerType } from "bun";
 
 // Initialize startup configuration (loads env vars, sets up PostCSS)
 const { isStandalone: IS_STANDALONE, binaryDir: BINARY_DIR, postcss, tailwindcss, autoprefixer } = await initializeStartup();
+
+// Check Node.js availability for Claude SDK subprocess
+await checkNodeAvailability();
 
 // Initialize default working directory
 const DEFAULT_WORKING_DIR = getDefaultWorkingDirectory();
@@ -83,31 +92,140 @@ interface ChatWebSocketData {
 // Store active queries for mid-stream control
 const activeQueries = new Map<string, unknown>();
 
+// Store project memory services, Python managers, and workflow engines per session
+const sessionMemoryServices = new Map<string, ProjectMemoryService>();
+const sessionPythonManagers = new Map<string, PythonEnvironmentManager>();
+const sessionWorkflowEngines = new Map<string, WorkflowEngine>();
+const sessionPydanticAIManagers = new Map<string, PydanticAIManager>();
+
 // Store AI services per session
-const sessionAIServices = new Map<string, {
-  learning: typeof personalLearning;
-  suggestions: typeof predictiveSuggestions;
-  knowledge: typeof personalKnowledgeBase;
-  habits: typeof habitTracking;
-}>();
+const sessionLearningEngines = new Map<string, PersonalLearningEngine>();
+const sessionPredictiveSuggestions = new Map<string, PredictiveSuggestions>();
+const sessionKnowledgeBases = new Map<string, PersonalKnowledgeBase>();
+const sessionHabitTracking = new Map<string, HabitTracking>();
 
 const hotReloadClients = new Set<HotReloadClient>();
 
 /**
- * Get or create AI services for a session
+ * Get or create project memory service for a session
+ */
+export function getProjectMemoryService(sessionId: string): ProjectMemoryService {
+  let service = sessionMemoryServices.get(sessionId);
+  if (!service) {
+    service = new ProjectMemoryService(sessionId);
+    sessionMemoryServices.set(sessionId, service);
+  }
+  return service;
+}
+
+/**
+ * Get or create Python environment manager for a session
+ */
+export function getPythonManager(sessionId: string): PythonEnvironmentManager {
+  let manager = sessionPythonManagers.get(sessionId);
+  if (!manager) {
+    manager = new PythonEnvironmentManager(sessionId);
+    sessionPythonManagers.set(sessionId, manager);
+  }
+  return manager;
+}
+
+/**
+ * Get or create workflow engine for a session
+ */
+export function getWorkflowEngine(sessionId: string): WorkflowEngine {
+  let engine = sessionWorkflowEngines.get(sessionId);
+  if (!engine) {
+    engine = new WorkflowEngine(sessionId);
+    sessionWorkflowEngines.set(sessionId, engine);
+  }
+  return engine;
+}
+
+/**
+ * Get or create PydanticAI manager for a session
+ */
+export function getPydanticAIManager(sessionId: string): PydanticAIManager {
+  let manager = sessionPydanticAIManagers.get(sessionId);
+  if (!manager) {
+    manager = new PydanticAIManager(sessionId);
+    sessionPydanticAIManagers.set(sessionId, manager);
+  }
+  return manager;
+}
+
+/**
+ * Get or create personal learning engine for a session
+ */
+export function getLearningEngine(sessionId: string): PersonalLearningEngine {
+  let engine = sessionLearningEngines.get(sessionId);
+  if (!engine) {
+    engine = new PersonalLearningEngine(sessionId);
+    sessionLearningEngines.set(sessionId, engine);
+  }
+  return engine;
+}
+
+/**
+ * Get or create predictive suggestions for a session
+ */
+export function getPredictiveSuggestions(sessionId: string): PredictiveSuggestions {
+  let suggestions = sessionPredictiveSuggestions.get(sessionId);
+  if (!suggestions) {
+    suggestions = new PredictiveSuggestions(sessionId);
+    sessionPredictiveSuggestions.set(sessionId, suggestions);
+  }
+  return suggestions;
+}
+
+/**
+ * Get or create knowledge base for a session
+ */
+export function getKnowledgeBase(sessionId: string): PersonalKnowledgeBase {
+  let kb = sessionKnowledgeBases.get(sessionId);
+  if (!kb) {
+    kb = new PersonalKnowledgeBase(sessionId);
+    sessionKnowledgeBases.set(sessionId, kb);
+  }
+  return kb;
+}
+
+/**
+ * Get or create habit tracking for a session
+ */
+export function getHabitTracking(sessionId: string): HabitTracking {
+  let tracking = sessionHabitTracking.get(sessionId);
+  if (!tracking) {
+    tracking = new HabitTracking(sessionId);
+    sessionHabitTracking.set(sessionId, tracking);
+  }
+  return tracking;
+}
+
+/**
+ * Get all AI services for a session
  */
 export function getAIServices(sessionId: string) {
-  let services = sessionAIServices.get(sessionId);
-  if (!services) {
-    services = {
-      learning: personalLearning,
-      suggestions: predictiveSuggestions,
-      knowledge: personalKnowledgeBase,
-      habits: habitTracking
-    };
-    sessionAIServices.set(sessionId, services);
-  }
-  return services;
+  return {
+    learning: getLearningEngine(sessionId),
+    suggestions: getPredictiveSuggestions(sessionId),
+    knowledge: getKnowledgeBase(sessionId),
+    habits: getHabitTracking(sessionId)
+  };
+}
+
+/**
+ * Clean up session resources when session ends
+ */
+export function cleanupSession(sessionId: string): void {
+  sessionMemoryServices.delete(sessionId);
+  sessionPythonManagers.delete(sessionId);
+  sessionWorkflowEngines.delete(sessionId);
+  sessionPydanticAIManagers.delete(sessionId);
+  sessionLearningEngines.delete(sessionId);
+  sessionPredictiveSuggestions.delete(sessionId);
+  sessionKnowledgeBases.delete(sessionId);
+  sessionHabitTracking.delete(sessionId);
 }
 
 // Watch for file changes (hot reload) - only in dev mode
@@ -127,15 +245,15 @@ if (!IS_STANDALONE) {
 }
 
 const server = Bun.serve({
-  port: process.env.PORT ? parseInt(process.env.PORT, 10) : 3003,
-  idleTimeout: 120,
+  port: 3003,
+  idleTimeout: 255, // 4.25 minutes (Bun's maximum) - keepalive messages every 30s prevent timeout
 
   websocket: {
     open(ws: ServerWebSocket<ChatWebSocketData>) {
       if (ws.data?.type === 'hot-reload') {
         hotReloadClients.add(ws);
       }
-      console.log(`WebSocket opened: ${ws.data?.type}`);
+      // Session ID is assigned in first message, not on connection
     },
 
     async message(ws: ServerWebSocket<ChatWebSocketData>, message: string) {
@@ -145,12 +263,13 @@ const server = Bun.serve({
     close(ws: ServerWebSocket<ChatWebSocketData>) {
       if (ws.data?.type === 'hot-reload') {
         hotReloadClients.delete(ws);
+      } else if (ws.data?.type === 'chat' && ws.data?.sessionId) {
+        console.log(`🔌 WebSocket disconnected: session ${ws.data.sessionId.substring(0, 8)}`);
       }
-      console.log(`WebSocket closed: ${ws.data?.type}`);
     }
   },
 
-  async fetch(req: Request, server: { upgrade: (req: Request, data?: { data: ChatWebSocketData }) => boolean }) {
+  async fetch(req: Request, server: ServerType<ChatWebSocketData>) {
     const url = new URL(req.url);
 
     // WebSocket endpoints
@@ -176,6 +295,30 @@ const server = Bun.serve({
       return sessionResponse;
     }
 
+    // Try AI routes
+    const aiResponse = await handleAIRoutes(req, url);
+    if (aiResponse) {
+      return aiResponse;
+    }
+
+    // Try Python routes
+    const pythonResponse = await handlePythonRoutes(req, url);
+    if (pythonResponse) {
+      return pythonResponse;
+    }
+
+    // Try workflow routes
+    const workflowResponse = await handleWorkflowRoutes(req, url);
+    if (workflowResponse) {
+      return workflowResponse;
+    }
+
+    // Try PydanticAI routes
+    const pydanticAIResponse = await handlePydanticAIRoutes(req, url);
+    if (pydanticAIResponse) {
+      return pydanticAIResponse;
+    }
+
     // Try directory routes
     const directoryResponse = await handleDirectoryRoutes(req, url);
     if (directoryResponse) {
@@ -192,18 +335,6 @@ const server = Bun.serve({
     const commandResponse = await handleCommandRoutes(req, url);
     if (commandResponse) {
       return commandResponse;
-    }
-
-    // Try AI routes
-    const aiResponse = await handleAIRoutes(req, url);
-    if (aiResponse) {
-      return aiResponse;
-    }
-
-    // Try Python routes
-    const pythonResponse = await handlePythonRoutes(req, url);
-    if (pythonResponse) {
-      return pythonResponse;
     }
 
     // Try to handle as static file
@@ -234,7 +365,7 @@ console.log(' ╚═╝  ╚═╝ ╚═════╝ ╚══════�
 console.log('\n');
 console.log(`  👉 Open here: http://localhost:${server.port}`);
 console.log('\n');
-console.log('  ═══════════════════════════════════════════════════════════════════════════════════════════════════════════');
+console.log('  ═══════════════════════════════════════════════════════════════════════════');
 console.log('\n');
 console.log('  All logs will show below this:');
 console.log('\n');

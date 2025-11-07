@@ -1,0 +1,22 @@
+# Agent Ironman Root Directory Marker
+# This file marks the ROOT of the Agent Ironman codebase
+# Used by Claude to verify it's working in the correct location
+
+CODEBASE_ROOT=/Users/vics/Applications/agent-ironman-app
+PROJECT_NAME=Agent Ironman App
+VERIFIED_DATE=2025-11-07
+
+# This is the CORRECT location for:
+# - VS Code workspace
+# - Server development (bun run server/server.ts)
+# - All source code modifications
+# - Running localhost:3003
+
+# NOT the chat sessions directory at:
+# /Users/vics/Documents/agent-ironman/
+
+# File structure verification:
+# ✅ package.json exists
+# ✅ server/ directory exists
+# ✅ client/ directory exists
+# ✅ bun.lock exists

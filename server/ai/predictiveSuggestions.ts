@@ -6,9 +6,9 @@
 import { createHash, randomUUID } from 'crypto';
 import path from 'path';
 import fs from 'fs/promises';
-import { productivityAnalytics, type ProductivityMetrics, type SessionAnalytics } from './productivityAnalytics';
-import { personalLearning, type LearningPattern, type SkillLevel } from './personalLearning';
-import { projectMemory, type ProjectContext } from '../memory/projectMemoryService';
+import { productivityAnalytics, type ProductivityMetrics, type SessionAnalytics } from '../analytics/productivityAnalytics';
+import { personalLearning, type PersonalLearningProfile, type LearningPattern, type SkillLevel } from './personalLearning';
+// import { projectMemory, type ProjectContext } from '../memory/projectMemoryService'; // Temporarily disabled
 
 export interface SuggestionContext {
   currentSession?: string;
@@ -121,7 +121,8 @@ export class PredictiveSuggestions {
     const [analytics, learningProfile, projectContext] = await Promise.all([
       productivityAnalytics.getOverallAnalytics(),
       personalLearning.getProfile(),
-      context.activeProject ? projectMemory.retrieveRelevantContext(context.activeProject, '', 5) : Promise.resolve([])
+      // Temporarily disabled - projectMemory integration pending
+      Promise.resolve([])
     ]);
 
     // Generate different types of suggestions
@@ -158,8 +159,8 @@ export class PredictiveSuggestions {
   private async generateWorkflowSuggestions(
     context: SuggestionContext,
     analytics: any,
-    learningProfile: any,
-    projectContext: ProjectContext[]
+    learningProfile: PersonalLearningProfile,
+    projectContext: any[]
   ): Promise<PredictiveSuggestion[]> {
     const suggestions: PredictiveSuggestion[] = [];
 
@@ -189,7 +190,7 @@ export class PredictiveSuggestions {
   private async generateOptimizationSuggestions(
     context: SuggestionContext,
     analytics: any,
-    learningProfile: any
+    learningProfile: PersonalLearningProfile
   ): Promise<PredictiveSuggestion[]> {
     const suggestions: PredictiveSuggestion[] = [];
 
@@ -268,22 +269,22 @@ export class PredictiveSuggestions {
   private async generateLearningSuggestions(
     context: SuggestionContext,
     analytics: any,
-    learningProfile: any
+    learningProfile: PersonalLearningProfile
   ): Promise<PredictiveSuggestion[]> {
     const suggestions: PredictiveSuggestion[] = [];
 
     // Skill improvement suggestions
-    const weakSkills = learningProfile.skillLevels.filter((skill: SkillLevel) => skill === 'beginner');
+    const weakSkills = learningProfile.skillLevels.filter(skill => skill.level === 'beginner');
     for (const skill of weakSkills.slice(0, 2)) {
       suggestions.push({
         id: randomUUID(),
         type: 'learning',
         priority: 'medium',
         confidence: 0.8,
-        title: `Improve ${skill} Skills`,
-        description: `Focus on improving your ${skill} abilities`,
-        reasoning: `Your current skill level in ${skill} is beginner`,
-        expectedBenefit: `Enhance capability in ${skill} tasks`,
+        title: `Improve ${skill.skill} Skills`,
+        description: `Focus on improving your ${skill.skill} abilities`,
+        reasoning: `Your current skill level in ${skill.skill} is ${skill.level}`,
+        expectedBenefit: `Enhance capability in ${skill.skill} tasks`,
         estimatedTime: 30,
         metadata: {
           category: 'learning',
@@ -293,7 +294,7 @@ export class PredictiveSuggestions {
           type: 'workflow',
           payload: {
             workflowId: 'skill-improvement',
-            parameters: { skill: skill }
+            parameters: { skill: skill.skill }
           }
         }
       });
@@ -426,8 +427,8 @@ export class PredictiveSuggestions {
 
   private getPatternBasedWorkflowSuggestions(
     context: SuggestionContext,
-    learningProfile: any,
-    projectContext: ProjectContext[]
+    learningProfile: PersonalLearningProfile,
+    projectContext: any[]
   ): PredictiveSuggestion[] {
     const suggestions: PredictiveSuggestion[] = [];
 
@@ -457,7 +458,7 @@ export class PredictiveSuggestions {
     }
 
     // Check for integration opportunities
-    if (context.systemState.availableIntegrations.length > 0 && !context.systemState.activeWorkflows.length) {
+    if (context.systemState.availableIntegrations.length > 0 && !context.activeWorkflows.length) {
       suggestions.push({
         id: randomUUID(),
         type: 'workflow',
@@ -480,7 +481,7 @@ export class PredictiveSuggestions {
 
   private getProjectBasedWorkflowSuggestions(
     context: SuggestionContext,
-    projectContext: ProjectContext[]
+    projectContext: any[]
   ): PredictiveSuggestion[] {
     const suggestions: PredictiveSuggestion[] = [];
 
@@ -550,17 +551,17 @@ export class PredictiveSuggestions {
     };
   }
 
-  private getBestLearningTime(learningProfile: any, context: SuggestionContext): string | null {
+  private getBestLearningTime(learningProfile: PersonalLearningProfile, context: SuggestionContext): string | null {
     // Analyze learning patterns to find best time
-    const timePatterns = learningProfile.patterns.filter((pattern: LearningPattern) =>
-      pattern.contexts?.includes('time') && pattern.confidence > 0.7
+    const timePatterns = learningProfile.patterns.filter(pattern =>
+      pattern.patternType === 'time_preference' && pattern.strength > 0.7
     );
 
     if (timePatterns.length > 0) {
-      const bestPattern = timePatterns.reduce((best: LearningPattern, current: LearningPattern) =>
-        current.confidence > best.confidence ? current : best
+      const bestPattern = timePatterns.reduce((best, current) =>
+        current.strength > best.strength ? current : best
       );
-      return bestPattern.contexts;
+      return bestPattern.context;
     }
 
     return null;

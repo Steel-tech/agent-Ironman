@@ -55,6 +55,15 @@ export function getAppDataDirectory(): string {
 }
 
 /**
+ * Get the working directory path for a specific session
+ * Used for session-isolated operations
+ */
+export function getWorkingDirectoryPath(sessionId: string): string {
+  const defaultDir = getDefaultWorkingDirectory();
+  return path.join(defaultDir, sessionId);
+}
+
+/**
  * Expand tilde (~) in path to actual home directory
  * Works cross-platform
  */
