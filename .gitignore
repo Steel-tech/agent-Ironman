@@ -40,3 +40,11 @@ dump.rdb
 
 # Chroma vector store data
 data/chroma/
+
+# Backup files
+*.backup
+*.bak
+
+# Temporary verification files
+WHERE_AM_I.txt
+verify-location.sh
