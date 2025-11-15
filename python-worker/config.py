@@ -28,6 +28,15 @@ class Settings(BaseSettings):
     # Anthropic API
     anthropic_api_key: str = os.getenv("ANTHROPIC_API_KEY", "")
 
+    # Claude Agent SDK Configuration
+    claude_code_cli_path: str | None = os.getenv("CLAUDE_CODE_CLI_PATH", None)
+    claude_sdk_permission_mode: str = os.getenv("CLAUDE_SDK_PERMISSION_MODE", "default")
+    claude_sdk_max_tokens: int = int(os.getenv("CLAUDE_SDK_MAX_TOKENS", "8000"))
+    claude_sdk_working_dir: str = os.getenv(
+        "CLAUDE_SDK_WORKING_DIR",
+        str(project_root)
+    )
+
     # OpenAI API (for multi-model support via Pydantic AI)
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
 

@@ -1,8 +1,6 @@
-<div align="center">
-
 # Agent Ironman
 
-**A comprehensive AI development platform powered by the Claude Agent SDK**
+**A comprehensive AI development platform powered by the Claude Agent SDK
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue?logo=typescript)](https://www.typescriptlang.org/)
@@ -14,8 +12,6 @@
 Enterprise-grade AI development platform with multi-agent workflows, build wizards, productivity analytics, and seamless integrations. Built with React, TypeScript, and Bun for blazing-fast performance.
 
 [Getting Started](#-quick-start) • [Features](#-features) • [Installation](#-installation) • [Contributing](#-contributing)
-
-</div>
 
 ---
 
@@ -40,6 +36,7 @@ Enterprise-grade AI development platform with multi-agent workflows, build wizar
 Agent Ironman is a **comprehensive AI development platform** that brings the power of Anthropic's Claude Agent SDK to your local machine. Unlike web-based alternatives, Agent Ironman runs entirely on your computer with full file system access, persistent sessions, and advanced features like workflow orchestration, productivity analytics, and external integrations.
 
 **What makes Agent Ironman different:**
+
 - 🤖 **Multi-Agent Workflows** - Chain specialized AI agents for complex tasks
 - 🧙‍♂️ **Build Wizard** - Bootstrap new projects with industry best practices
 - 🔌 **Integration Hub** - Connect GitHub, deployment services, webhooks, and more
@@ -49,6 +46,7 @@ Agent Ironman is a **comprehensive AI development platform** that brings the pow
 - 🔒 **Privacy-First** - All data stored locally, full control over your information
 
 **Perfect for:**
+
 - 🔧 Development teams building production applications
 - 🏗️ Engineers managing complex multi-service architectures
 - 📈 Organizations tracking AI costs and productivity
@@ -61,23 +59,27 @@ Agent Ironman is a **comprehensive AI development platform** that brings the pow
 ## ✨ Features
 
 ### 🤖 Powered by Claude Agent SDK
+
 - **Claude Sonnet 4.5** - Anthropic's most intelligent model
 - **Specialized Sub-Agents** - Researcher, code reviewer, debugger, test writer, documenter
 - **Full Tool Access** - Read, write, edit files, search code, run commands
 - **MCP Integration** - Model Context Protocol for extensibility
 
 ### 💬 Real-Time Streaming
+
 - **WebSocket-Based** - Instant responses as Claude types
 - **Live Updates** - See tool use in real-time
 - **Nested Visualization** - Sub-agent tools displayed under parent tasks
 
 ### 🗂️ Session Management
+
 - **SQLite Persistence** - All conversations saved locally
 - **Session Isolation** - Each chat has its own working directory
 - **Auto-Titles** - Sessions named from first message
 - **Full History** - Never lose a conversation
 
 ### 🎨 Modern UI/UX
+
 - **Clean Interface** - Built with Radix UI components
 - **Dark Mode** - Easy on the eyes
 - **Virtual Scrolling** - Smooth performance with long conversations
@@ -85,6 +87,7 @@ Agent Ironman is a **comprehensive AI development platform** that brings the pow
 - **Smooth Animations** - Powered by Framer Motion
 
 ### 🔄 Workflow Orchestration
+
 - **Multi-Agent Workflows** - Chain multiple AI agents together
 - **Custom Triggers** - Event-driven workflow execution
 - **Built-in Templates** - Pre-configured workflows for common tasks
@@ -92,6 +95,7 @@ Agent Ironman is a **comprehensive AI development platform** that brings the pow
 - **Execution History** - Track and replay workflow runs
 
 ### 🧙‍♂️ Build Wizard
+
 - **4 Template Modes** - CLI Tool, Web App, API Service, Full-Stack App
 - **Interactive Setup** - Step-by-step project initialization
 - **Smart Scaffolding** - Generate project structure automatically
@@ -99,6 +103,7 @@ Agent Ironman is a **comprehensive AI development platform** that brings the pow
 - **Instant Start** - From zero to running project in minutes
 
 ### 🔌 Integration Hub
+
 - **GitHub Integration** - Connect repositories, track issues, manage PRs
 - **Deployment Services** - Vercel, Netlify, Railway, Render support
 - **Webhook Support** - Real-time notifications and triggers
@@ -106,6 +111,7 @@ Agent Ironman is a **comprehensive AI development platform** that brings the pow
 - **API Connectors** - Easy third-party service integration
 
 ### 📊 Productivity Analytics
+
 - **Code Metrics** - Lines written, files modified, commits made
 - **Time Tracking** - Session duration and activity patterns
 - **AI Usage Stats** - Token consumption and cost analysis
@@ -113,7 +119,9 @@ Agent Ironman is a **comprehensive AI development platform** that brings the pow
 - **Custom Reports** - Export analytics for team reporting
 
 ### ⚡ Slash Commands
+
 Quick actions powered by Claude Code:
+
 - **/audit** - Security and dependency auditing
 - **/check** - Run linting, type-checking, and tests
 - **/commit** - Generate AI commit messages
@@ -122,17 +130,20 @@ Quick actions powered by Claude Code:
 - **/compact** - Reduce conversation token usage
 
 ### 🌐 Multi-Provider Support
+
 - **Anthropic** - Direct Claude API access
 - **Z.AI** - Alternative provider with GLM models + web search
 - **Easy Switching** - Change providers via dropdown
 
 ### ⚡ Developer Experience
+
 - **Hot Reload** - Instant updates during development
 - **TypeScript** - Full type safety
 - **Bun Runtime** - Ultra-fast builds and execution
 - **Zero Config** - SQLite just works
 
 ### 📊 Observability & Monitoring
+
 - **Langfuse Integration** - LLM cost tracking and performance monitoring
 - **Request Tracing** - Full visibility into all AI interactions
 - **Token Analytics** - Monitor usage and optimize costs
@@ -151,6 +162,7 @@ curl -fsSL https://raw.githubusercontent.com/KenKaiii/agent-ironman/master/insta
 ```
 
 **What it does:**
+
 - ✅ Auto-detects your OS and architecture
 - ✅ Downloads the correct release for your platform
 - ✅ Installs to platform-specific location
@@ -159,6 +171,7 @@ curl -fsSL https://raw.githubusercontent.com/KenKaiii/agent-ironman/master/insta
 - ✅ macOS: Apple-signed & notarized (no warnings)
 
 **Supported Platforms:**
+
 - macOS (Intel + Apple Silicon)
 - Linux (x64 + ARM64)
 - Windows x64 (via Git Bash/WSL)
@@ -214,18 +227,21 @@ Replace `sk-ant-your-key-here` with your actual key from [console.anthropic.com]
 ### 2. Launch the App
 
 **macOS/Linux:**
+
 ```bash
 agent-ironman
 ```
 
 **Windows:**
+
 - Double-click `agent-ironman.exe` in the install directory
 
 **From Finder/Explorer:**
+
 1. Navigate to install directory
 2. Double-click the `agent-ironman` executable
 
-The app starts at **http://localhost:3003** and opens automatically in your browser.
+The app starts at **<http://localhost:3003>** and opens automatically in your browser.
 
 ### 3. Start Chatting
 
@@ -241,23 +257,28 @@ The app starts at **http://localhost:3003** and opens automatically in your brow
 ### Session Management
 
 **Create a Session:**
+
 - Click **"New Chat"** in sidebar
 - Choose working directory for file operations
 - Sessions are isolated - files stay organized
 
 **Rename Session:**
+
 - Click pencil icon → Enter new name → Press Enter
 
 **Delete Session:**
+
 - Click trash icon → Confirm deletion (permanent)
 
 ### Model Selection
 
 **Anthropic Models:**
+
 - **Claude Sonnet 4.5** ⭐ - Best for complex tasks
 - Direct API access to latest Claude models
 
 **Z.AI Models:**
+
 - **GLM 4.6** - Alternative with web search MCP
 - Great for research tasks
 
@@ -305,12 +326,14 @@ Build multi-agent workflows through the UI or API:
 ```
 
 **Built-in Workflows:**
+
 - **Quality Check** - Lint, type-check, test, security scan
 - **Documentation Update** - Analyze changes, update docs, generate examples
 - **Deployment Pipeline** - Build, test, deploy, notify
 - **Code Migration** - Analyze, refactor, test, validate
 
 **Accessing Workflows:**
+
 1. Open workflow panel in sidebar
 2. Browse built-in templates or create custom
 3. Configure triggers and parameters
@@ -331,6 +354,7 @@ Build multi-agent workflows through the UI or API:
 5. Install dependencies automatically
 
 **Wizard generates:**
+
 - Project scaffolding with best practices
 - Configuration files (tsconfig, eslint, prettier)
 - Development scripts and commands
@@ -344,6 +368,7 @@ Build multi-agent workflows through the UI or API:
 Access Integration Hub from the header menu:
 
 **GitHub Integration:**
+
 ```bash
 # Connect your GitHub account
 # Provides: Issue tracking, PR management, commit history
@@ -351,6 +376,7 @@ gh auth login
 ```
 
 **Deployment Services:**
+
 - **Vercel** - One-click frontend deployments
 - **Netlify** - Static site hosting with edge functions
 - **Railway** - Container-based app hosting
@@ -358,6 +384,7 @@ gh auth login
 
 **Webhooks:**
 Set up real-time notifications:
+
 ```javascript
 // Example: GitHub webhook for PR events
 {
@@ -369,6 +396,7 @@ Set up real-time notifications:
 ```
 
 **Package Registry:**
+
 - Search and install packages directly
 - View dependency trees
 - Check for updates and vulnerabilities
@@ -381,24 +409,28 @@ Set up real-time notifications:
 Click "Analytics" in header to view:
 
 **Code Activity:**
+
 - Lines of code written per session
 - Files created/modified/deleted
 - Most active file types
 - Contribution heatmap
 
 **AI Usage:**
+
 - Total tokens consumed
 - Cost per session/project
 - Model usage breakdown
 - Most expensive operations
 
 **Time Tracking:**
+
 - Session duration trends
 - Peak productivity hours
 - Average response times
 - Idle time detection
 
 **Export Reports:**
+
 - CSV/JSON format
 - Custom date ranges
 - Team aggregation
@@ -411,6 +443,7 @@ Click "Analytics" in header to view:
 Type `/` in the chat input to see available commands:
 
 **Built-in Commands:**
+
 - `/audit` - Run security audit on dependencies
 - `/check` - Execute all code quality checks
 - `/commit` - Generate semantic commit message
@@ -465,7 +498,7 @@ EOF
 bun run dev
 ```
 
-Development server runs at **http://localhost:3003** with hot reload.
+Development server runs at **<http://localhost:3003>** with hot reload.
 
 ### Build from Source
 
@@ -495,6 +528,7 @@ bun test --watch
 ### Tech Stack
 
 **Frontend:**
+
 - React 19 + TypeScript
 - Radix UI (accessible components)
 - Tailwind CSS 4 (utility-first styling)
@@ -505,6 +539,7 @@ bun test --watch
 - TanStack Virtual (virtualized lists)
 
 **Backend:**
+
 - Bun runtime (high performance)
 - Claude Agent SDK (AI interactions)
 - SQLite (session persistence)
@@ -513,6 +548,7 @@ bun test --watch
 - Langfuse (LLM observability & cost tracking)
 
 **AI & Agents:**
+
 - Claude Sonnet 4.5 (primary model)
 - Pydantic AI (type-safe Python agents)
 - Multi-agent workflow orchestration
@@ -520,25 +556,98 @@ bun test --watch
 - Personal learning system
 
 **Integrations:**
+
 - GitHub API (repository management)
 - Deployment platforms (Vercel, Netlify, Railway, Render)
 - Webhook services (real-time notifications)
 - Package registries (npm, PyPI)
 
 **Analytics & Monitoring:**
+
 - Productivity analytics engine
 - Token usage tracking
 - Cost attribution
 - Performance metrics
 
 **Python Workers (Optional):**
+
 - Celery (task queue)
 - Pydantic AI (type-safe agents)
+- Claude Agent SDK (Python code execution)
 - Redis (message broker)
+
+#### Claude Agent SDK Setup
+
+The Python Claude Agent SDK enables Python workers to control Claude Code programmatically for code execution and file operations.
+
+**Installation:**
+
+```bash
+# 1. Install Claude Code CLI (required)
+npm install -g @anthropic-ai/claude-code
+
+# 2. Install Python SDK
+pip install "claude-agent-sdk>=0.1.0"
+
+# 3. Verify installation
+python3 test-claude-agent-sdk.py
+```
+
+**Configuration (`.env`):**
+
+```bash
+# Claude Agent SDK settings
+CLAUDE_SDK_PERMISSION_MODE=plan      # or "acceptEdits", "default"
+CLAUDE_SDK_MAX_TOKENS=8000
+CLAUDE_SDK_WORKING_DIR=/path/to/project
+```
+
+**Available Celery Tasks:**
+
+```python
+# Simple query
+task = claude_agent.query.apply_async(
+    args=["Analyze this codebase structure"],
+    kwargs={"permission_mode": "plan"}
+)
+
+# Execute code task with file operations
+task = claude_agent.execute_code.apply_async(
+    args=["Create a new React component"],
+    kwargs={"auto_accept": False, "files_to_modify": ["src/components/NewComponent.tsx"]}
+)
+
+# Analyze codebase
+task = claude_agent.analyze_codebase.apply_async(
+    args=["Find all API endpoints"],
+    kwargs={"file_patterns": ["*.ts", "*.tsx"]}
+)
+
+# Run tests
+task = claude_agent.run_tests.apply_async(
+    args=["npm test"],
+    kwargs={"working_dir": "./"}
+)
+```
+
+**Service Layer Usage:**
+
+```python
+from python_worker.services.claude_agent_client import get_claude_agent_client
+
+client = get_claude_agent_client()
+
+if client.is_available():
+    result = await client.query_simple(
+        prompt="What files are in this directory?",
+        working_dir="/path/to/analyze",
+        permission_mode="plan"
+    )
+    print(result["text"])
+```
 
 ### Project Structure
 
-```
 agent-ironman/
 ├── client/                      # React frontend
 │   ├── components/
@@ -587,7 +696,6 @@ agent-ironman/
 ├── .github/workflows/          # CI/CD for releases
 ├── build-source-release.sh     # Build script
 └── install.sh                  # One-line installer
-```
 
 ---
 
@@ -647,6 +755,7 @@ Customize Claude's behavior in `server/systemPrompt.ts`.
 **Langfuse Integration:**
 
 Agent Ironman includes built-in observability with [Langfuse](https://langfuse.com) for:
+
 - 📊 Cost tracking and token usage monitoring
 - 🔍 Request tracing across all LLM calls
 - ⏱️ Performance metrics and latency tracking
@@ -656,25 +765,29 @@ Agent Ironman includes built-in observability with [Langfuse](https://langfuse.c
 
 1. Sign up at [cloud.langfuse.com](https://cloud.langfuse.com)
 2. Add credentials to `.env`:
+
    ```env
    LANGFUSE_PUBLIC_KEY=pk-lf-...
    LANGFUSE_SECRET_KEY=sk-lf-...
    LANGFUSE_BASE_URL=https://cloud.langfuse.com
    ```
+
 3. Restart Agent Ironman - traces appear automatically!
 
 📖 **Full documentation:** See [`docs/LANGFUSE_INTEGRATION.md`](docs/LANGFUSE_INTEGRATION.md) for:
+
 - Detailed setup instructions
 - Python worker instrumentation
 - Dashboard navigation guide
 - Cost optimization tips
 - Troubleshooting
 
-**Python Workers & Pydantic AI**
+**Python Workers & Pydantic AI
 
 Agent Ironman includes optional Python workers for type-safe AI agents using [Pydantic AI](https://ai.pydantic.dev):
 
 **Features:**
+
 - **Type-Safe Agents** - Full TypeScript-like type safety in Python
 - **Custom Tools** - Extend agents with Python-specific capabilities
 - **Async Support** - Non-blocking task execution
@@ -717,6 +830,7 @@ result = await agent.run('Analyze this code: ...')
 ```
 
 📖 **Full documentation:** See [`docs/PYDANTIC_AI_INTEGRATION.md`](docs/PYDANTIC_AI_INTEGRATION.md) for:
+
 - Complete setup instructions
 - Agent creation examples
 - Custom tool development
@@ -729,7 +843,7 @@ result = await agent.run('Analyze this code: ...')
 
 Agent Ironman exposes a REST API for programmatic access:
 
-### Session Management
+ Session Management
 
 ```bash
 # List all sessions
@@ -790,7 +904,7 @@ GET /api/ai/learning/:sessionId
 GET /api/analytics/:sessionId
 ```
 
-### Integration Hub
+Integration Hub
 
 ```bash
 # List available integrations
@@ -862,10 +976,12 @@ rm -rf data/ && mkdir data
 ### macOS Security Warnings
 
 **First run:**
+
 1. Right-click `agent-ironman` → **"Open"**
 2. Click **"Open"** in security dialog
 
 Or via System Preferences:
+
 1. **System Preferences** → **Security & Privacy**
 2. Click **"Open Anyway"**
 
@@ -897,6 +1013,7 @@ Contributions welcome! Here's how:
 This project is licensed under the **MIT License**.
 
 **What this means:**
+
 - ✅ **Free to use** - Personal or commercial
 - ✅ **Modify freely** - Adapt to your needs
 - ✅ **Distribute** - Share with others
@@ -912,6 +1029,7 @@ See the [LICENSE](LICENSE) file for full terms.
 **Created by [Ken Kai](https://github.com/KenKaiii)**
 
 **Built with:**
+
 - [Anthropic Claude Agent SDK](https://github.com/anthropics/anthropic-sdk-typescript) - AI capabilities
 - [Bun](https://bun.sh/) - Lightning-fast runtime
 - [React](https://reactjs.org/) - UI framework
@@ -920,6 +1038,7 @@ See the [LICENSE](LICENSE) file for full terms.
 - [Framer Motion](https://www.framer.com/motion/) - Smooth animations
 
 **Special thanks to:**
+
 - Anthropic team for the Claude Agent SDK
 - Open source community for amazing tools
 
@@ -927,10 +1046,8 @@ See the [LICENSE](LICENSE) file for full terms.
 
 <div align="center">
 
-**Built with ❤️ using Claude Agent SDK**
+**Built with ❤️ using Claude Agent SDK
 
-Copyright © 2025 Ken Kai • Licensed under MIT
+Copyright © 2025 • Licensed under MIT
 
 [⬆ Back to Top](#agent-ironman)
-
-</div>
